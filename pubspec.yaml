@@ -24,6 +24,8 @@ dependencies:
   rxdart: ^0.28.0
   share_plus: ^10.1.4
   rename: ^3.1.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.3
 
 dev_dependencies:
   flutter_test:
@@ -34,3 +36,28 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/android_logo.png"
+  background_color: "#0D1117"
+  theme_color: "#E5533D"
+  adaptive_icon_background: "#0D1117"
+  adaptive_icon_foreground: "assets/android_logo.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#0D1117"
+  color_dark: "#0D1117"
+  image: assets/android_logo.png
+  android_12:
+    color: "#0D1117"
+    color_dark: "#0D1117"
+    image: assets/android_logo.png
+  ios: true
+  android: true
+  fullscreen: true

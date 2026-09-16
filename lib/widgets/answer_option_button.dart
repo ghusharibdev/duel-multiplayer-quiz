@@ -21,29 +21,30 @@ class AnswerOptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     Color backgroundColor;
     Color textColor;
     Color? borderColor;
 
     switch (state) {
       case AnswerState.idle:
-        backgroundColor = AppColors.stone;
-        textColor = AppColors.ink;
+        backgroundColor = colors.surfaceVariant;
+        textColor = colors.ink;
         borderColor = null;
         break;
       case AnswerState.selected:
-        backgroundColor = AppColors.stone;
-        textColor = AppColors.ink;
-        borderColor = selectedByColor ?? AppColors.ink;
+        backgroundColor = colors.surfaceVariant;
+        textColor = colors.ink;
+        borderColor = selectedByColor ?? colors.border;
         break;
       case AnswerState.correct:
-        backgroundColor = AppColors.gold;
-        textColor = AppColors.ink;
-        borderColor = AppColors.gold;
+        backgroundColor = colors.gold.withValues(alpha: 0.2);
+        textColor = colors.goldBright;
+        borderColor = colors.gold;
         break;
       case AnswerState.incorrect:
-        backgroundColor = AppColors.stone;
-        textColor = AppColors.inkDim;
+        backgroundColor = colors.surfaceVariant;
+        textColor = colors.inkFaint;
         borderColor = selectedByColor;
         break;
     }
@@ -57,9 +58,10 @@ class AnswerOptionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: borderColor != null
-              ? Border.all(color: borderColor, width: 2)
-              : null,
+          border: Border.all(
+            color: borderColor ?? colors.border.withValues(alpha: 0.3),
+            width: borderColor != null ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
@@ -68,8 +70,8 @@ class AnswerOptionButton extends StatelessWidget {
               height: 32,
               decoration: BoxDecoration(
                 color: state == AnswerState.correct
-                    ? AppColors.ink.withValues(alpha: 0.1)
-                    : AppColors.cream,
+                    ? colors.gold.withValues(alpha: 0.3)
+                    : colors.card,
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -79,7 +81,7 @@ class AnswerOptionButton extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: state == AnswerState.correct
-                        ? AppColors.ink
+                        ? colors.goldBright
                         : textColor,
                   ),
                 ),

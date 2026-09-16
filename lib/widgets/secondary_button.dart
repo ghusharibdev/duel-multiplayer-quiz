@@ -15,14 +15,15 @@ class SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return SizedBox(
       width: width ?? double.infinity,
       height: 56,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.ink,
-          side: const BorderSide(color: AppColors.ink, width: 1.5),
+          foregroundColor: colors.ink,
+          side: BorderSide(color: colors.border, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

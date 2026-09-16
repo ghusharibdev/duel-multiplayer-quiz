@@ -100,6 +100,20 @@ Stream<Match?> matchDocStream(String matchId) {
 }
 
 // ---------------------------------------------------------------------------
+// Provider: listen to a specific match by ID (used by MatchScreen)
+// ---------------------------------------------------------------------------
+final matchByIdProvider = StreamProvider.family<Match?, String>((ref, matchId) {
+  return FirebaseFirestore.instance
+      .collection('matches')
+      .doc(matchId)
+      .snapshots()
+      .map((doc) {
+    if (doc.exists) return Match.fromFirestore(doc);
+    return null;
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Game service
 // ---------------------------------------------------------------------------
 class GameService {

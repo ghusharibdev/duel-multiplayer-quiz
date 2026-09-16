@@ -102,16 +102,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final canPop = Navigator.of(context).canPop();
     
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         elevation: 0,
         leading: canPop
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+                icon: Icon(Icons.arrow_back_rounded, color: colors.ink),
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
@@ -126,7 +127,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
               Text(
                 _isSignUp ? 'Create Account' : 'Sign In',
-                style: AppTypography.display(color: AppColors.ink),
+                style: AppTypography.display(color: colors.ink),
               ),
 
               const SizedBox(height: 8),
@@ -136,7 +137,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ? 'Link your games to a permanent account'
                     : 'Play with a saved profile and stats',
                 style: AppTypography.body(
-                  color: AppColors.ink.withValues(alpha: 0.5),
+                  color: colors.inkSubtle,
                 ),
               ),
 
@@ -151,20 +152,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     labelText: 'Display Name',
                     hintText: 'What should we call you?',
                     labelStyle: AppTypography.body(
-                      color: AppColors.ink.withValues(alpha: 0.4),
+                      color: colors.inkSubtle,
                     ),
                     hintStyle: AppTypography.body(
-                      color: AppColors.ink.withValues(alpha: 0.25),
+                      color: colors.inkFaint,
                     ),
                     filled: true,
-                    fillColor: AppColors.stone,
+                    fillColor: colors.surfaceVariant,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.coral),
+                      borderSide: BorderSide(color: colors.coral),
                     ),
                   ),
                 ),
@@ -178,17 +179,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   labelStyle: AppTypography.body(
-                    color: AppColors.ink.withValues(alpha: 0.4),
+                    color: colors.inkSubtle,
                   ),
                   filled: true,
-                  fillColor: AppColors.stone,
+                  fillColor: colors.surfaceVariant,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.coral),
+                    borderSide: BorderSide(color: colors.coral),
                   ),
                 ),
               ),
@@ -202,17 +203,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: AppTypography.body(
-                    color: AppColors.ink.withValues(alpha: 0.4),
+                    color: colors.inkSubtle,
                   ),
                   filled: true,
-                  fillColor: AppColors.stone,
+                  fillColor: colors.surfaceVariant,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.coral),
+                    borderSide: BorderSide(color: colors.coral),
                   ),
                 ),
               ),
@@ -229,7 +230,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         _rememberMe = value ?? false;
                       });
                     },
-                    activeColor: AppColors.coral,
+                    activeColor: colors.coral,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -237,7 +238,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   Text(
                     'Remember me',
                     style: AppTypography.body(
-                      color: AppColors.ink.withValues(alpha: 0.7),
+                      color: colors.inkSubtle,
                     ),
                   ),
                 ],
@@ -247,7 +248,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 const SizedBox(height: 16),
                 Text(
                   _error!,
-                  style: AppTypography.body(color: AppColors.coral),
+                  style: AppTypography.body(color: colors.coral),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -278,7 +279,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   _isSignUp
                       ? 'Already have an account? Sign In'
                       : "Don't have an account? Sign Up",
-                  style: AppTypography.body(color: AppColors.coral),
+                  style: AppTypography.body(color: colors.coral),
                 ),
               ),
 

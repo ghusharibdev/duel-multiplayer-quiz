@@ -29,13 +29,14 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -47,13 +48,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             children: [
               Text(
                 'Choose Category',
-                style: AppTypography.display(color: AppColors.ink),
+                style: AppTypography.display(color: colors.ink),
               ),
               const SizedBox(height: 8),
               Text(
                 'Pick a topic or leave it random',
                 style: AppTypography.body(
-                  color: AppColors.ink.withValues(alpha: 0.5),
+                  color: colors.inkSubtle,
                 ),
               ),
 
@@ -62,7 +63,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               // Difficulty chips
               Text(
                 'Difficulty',
-                style: AppTypography.h1(color: AppColors.ink),
+                style: AppTypography.h1(color: colors.ink),
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -80,27 +81,29 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.coral : AppColors.stone,
+                          color: isSelected ? colors.coral : colors.surface,
                           borderRadius: BorderRadius.circular(22),
                           border: isSelected
                               ? null
                               : Border.all(
-                                  color: AppColors.ink.withValues(alpha: 0.1),
+                                  color: colors.border,
                                 ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
                           children: [
                             Icon(
                               d.icon,
                               size: 16,
-                              color: isSelected ? AppColors.cream : AppColors.ink,
+                              color: isSelected ? colors.background : colors.ink,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               d.label,
                               style: AppTypography.body(
-                                color: isSelected ? AppColors.cream : AppColors.ink,
+                                color: isSelected ? colors.background : colors.ink,
                               ),
                             ),
                           ],
@@ -116,7 +119,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               // Categories
               Text(
                 'Topic',
-                style: AppTypography.h1(color: AppColors.ink),
+                style: AppTypography.h1(color: colors.ink),
               ),
               const SizedBox(height: 12),
 
@@ -232,16 +235,17 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.coral.withValues(alpha: 0.12) : AppColors.stone,
+          color: isSelected ? colors.coral.withValues(alpha: 0.12) : colors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.coral : Colors.transparent,
+            color: isSelected ? colors.coral : Colors.transparent,
             width: 2,
           ),
         ),
@@ -250,14 +254,14 @@ class _CategoryTile extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? AppColors.coral : AppColors.ink.withValues(alpha: 0.6),
+              color: isSelected ? colors.coral : colors.inkSubtle,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 style: AppTypography.caption(
-                  color: isSelected ? AppColors.coral : AppColors.ink,
+                  color: isSelected ? colors.coral : colors.ink,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

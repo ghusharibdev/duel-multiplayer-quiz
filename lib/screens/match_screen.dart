@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/match.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -25,7 +24,6 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
   bool _hasSubmitted = false;
   bool _navigated = false;
   bool _tapLocked = false;
-  Match? _lastMatch;
 
   @override
   void initState() {
@@ -60,36 +58,40 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
   Future<bool> _onWillPop() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Leave Match?', style: AppTypography.h1(color: AppColors.ink)),
-        content: Text(
-          'Are you sure you want to leave this match? You will forfeit the game.',
-          style: AppTypography.body(color: AppColors.ink.withValues(alpha: 0.7)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: AppTypography.body(color: AppColors.ink)),
+      builder: (context) {
+        final colors = AppColors.of(context);
+        return AlertDialog(
+          backgroundColor: colors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Leave Match?', style: AppTypography.h1(color: colors.ink)),
+          content: Text(
+            'Are you sure you want to leave this match? You will forfeit the game.',
+            style: AppTypography.body(color: colors.inkSubtle),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Leave', style: AppTypography.body(color: AppColors.coral)),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel', style: AppTypography.body(color: colors.ink)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Leave', style: AppTypography.body(color: colors.coral)),
+            ),
+          ],
+        );
+      },
     );
     return result ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final matchAsync = ref.watch(currentMatchProvider);
+    final colors = AppColors.of(context);
+    final matchAsync = ref.watch(matchByIdProvider(widget.matchId));
     final user = FirebaseAuth.instance.currentUser;
 
     // ref.listen belongs in build() for Riverpod 3.x
-    ref.listen(currentMatchProvider, (previous, next) {
+    ref.listen(matchByIdProvider(widget.matchId), (previous, next) {
       if (_navigated) return;
       final match = next.value;
       if (match == null || match.isFinished) return;
@@ -120,14 +122,14 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
         );
       }
 
-      if (match.currentRound != _lastMatch?.currentRound) {
+      final prevMatch = previous?.value;
+      if (match.currentRound != prevMatch?.currentRound) {
         setState(() {
           _selectedAnswer = null;
           _hasSubmitted = false;
           _tapLocked = false;
         });
       }
-      _lastMatch = match;
     });
 
     return PopScope(
@@ -140,10 +142,10 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         body: matchAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.coral),
+          loading: () => Center(
+            child: CircularProgressIndicator(color: colors.coral),
           ),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (match) {
@@ -190,7 +192,7 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   Text(
                     'Round $currentRound of ${match.totalRounds}',
                     style: AppTypography.caption(
-                      color: AppColors.ink.withValues(alpha: 0.5),
+                      color: colors.inkSubtle,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -205,26 +207,26 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                         children: [
                           PlayerAvatar(
                             label: 'You',
-                            ringColor: AppColors.coral,
+                            ringColor: colors.coral,
                             size: 56,
                             isActive: myAnswer == null,
                           ),
                           const SizedBox(height: 8),
                           ScoreDisplay(
                             score: myScore,
-                            color: AppColors.coral,
+                            color: colors.coral,
                             playerName: 'You',
                           ),
                         ],
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
                           'VS',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
+                            color: colors.ink,
                           ),
                         ),
                       ),
@@ -232,14 +234,14 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                         children: [
                           PlayerAvatar(
                             label: 'Opp',
-                            ringColor: AppColors.teal,
+                            ringColor: colors.teal,
                             size: 56,
                             isActive: opponentAnswer == null,
                           ),
                           const SizedBox(height: 8),
                           ScoreDisplay(
                             score: oppScore,
-                            color: AppColors.teal,
+                            color: colors.teal,
                             playerName: 'Opponent',
                           ),
                         ],
@@ -251,7 +253,7 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
 
                   Text(
                     roundData.questionText,
-                    style: AppTypography.h1(color: AppColors.ink),
+                    style: AppTypography.h1(color: colors.ink),
                     textAlign: TextAlign.left,
                   ),
 
@@ -274,11 +276,11 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                             index == _selectedAnswer &&
                             index != roundData.correctIndex) {
                           state = AnswerState.incorrect;
-                          borderColor = AppColors.coral;
+                          borderColor = colors.coral;
                         } else if (_hasSubmitted && index == _selectedAnswer) {
                           // User has submitted — show their selection highlighted
                           state = AnswerState.selected;
-                          borderColor = AppColors.coral;
+                          borderColor = colors.coral;
                         }
 
                         return AnswerOptionButton(
@@ -311,14 +313,14 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                     child: ElevatedButton(
                       onPressed: null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.coral,
-                        foregroundColor: AppColors.cream,
+                        backgroundColor: colors.coral,
+                        foregroundColor: colors.background,
                         disabledBackgroundColor: _hasSubmitted
-                            ? AppColors.teal.withValues(alpha: 0.3)
-                            : AppColors.stone,
+                            ? colors.teal.withValues(alpha: 0.3)
+                            : colors.surfaceVariant,
                         disabledForegroundColor: _hasSubmitted
-                            ? AppColors.teal
-                            : AppColors.ink.withValues(alpha: 0.3),
+                            ? colors.teal
+                            : colors.inkFaint,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

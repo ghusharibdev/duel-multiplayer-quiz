@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/player_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/primary_button.dart';
@@ -17,16 +18,17 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final userAsync = ref.watch(authStateProvider);
     final playerAsync = ref.watch(currentPlayerProvider);
     final matchHistory = ref.watch(matchHistoryProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: userAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.coral),
+          loading: () => Center(
+            child: CircularProgressIndicator(color: colors.coral),
           ),
           error: (e, s) => const Center(child: Text('Error')),
           data: (user) {
@@ -70,13 +72,13 @@ class HomeScreen extends ConsumerWidget {
                             height: 44,
                             decoration: BoxDecoration(
                               color: isAnonymous
-                                  ? AppColors.stone
-                                  : AppColors.coral,
+                                  ? colors.surface
+                                  : colors.coral,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isAnonymous
-                                    ? AppColors.ink.withValues(alpha: 0.1)
-                                    : AppColors.coral,
+                                    ? colors.border
+                                    : colors.coral,
                                 width: 2,
                               ),
                             ),
@@ -86,12 +88,12 @@ class HomeScreen extends ConsumerWidget {
                                       Icons.person_outline_rounded,
                                       size: 22,
                                       color:
-                                          AppColors.ink.withValues(alpha: 0.4),
+                                          colors.inkSubtle,
                                     )
                                   : Text(
                                       initials,
-                                      style: const TextStyle(
-                                        color: AppColors.cream,
+                                      style: TextStyle(
+                                        color: colors.background,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -112,7 +114,7 @@ class HomeScreen extends ConsumerWidget {
                                     ? 'Guest Player'
                                     : 'Hi, $displayName',
                                 style: AppTypography.h1(
-                                  color: AppColors.ink,
+                                  color: colors.ink,
                                 ),
                               ),
                               if (isAnonymous)
@@ -120,10 +122,24 @@ class HomeScreen extends ConsumerWidget {
                                   'Tap avatar to sign in',
                                   style: AppTypography.caption(
                                     color:
-                                        AppColors.ink.withValues(alpha: 0.4),
+                                        colors.inkSubtle,
                                   ),
                                 ),
                             ],
+                          ),
+                        ),
+
+                        // Theme toggle
+                        IconButton(
+                          onPressed: () {
+                            ref.read(themeProvider.notifier).toggle();
+                          },
+                          icon: Icon(
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Icons.light_mode_rounded
+                                : Icons.dark_mode_rounded,
+                            color: colors.ink,
+                            size: 24,
                           ),
                         ),
 
@@ -135,9 +151,9 @@ class HomeScreen extends ConsumerWidget {
                                   builder: (_) => const SettingsScreen()),
                             );
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.settings_rounded,
-                            color: AppColors.ink,
+                            color: colors.ink,
                             size: 24,
                           ),
                         ),
@@ -151,14 +167,14 @@ class HomeScreen extends ConsumerWidget {
                   Text(
                     'DUEL',
                     style:
-                        AppTypography.scoreDisplay(color: AppColors.coral),
+                        AppTypography.scoreDisplay(color: colors.coral),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Real-Time Trivia',
                     style: AppTypography.body(
-                      color: AppColors.ink.withValues(alpha: 0.5),
+                      color: colors.inkSubtle,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -174,7 +190,7 @@ class HomeScreen extends ConsumerWidget {
                       return Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.stone,
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
@@ -183,27 +199,27 @@ class HomeScreen extends ConsumerWidget {
                             _StatItem(
                               label: 'Wins',
                               value: '${stats?.wins ?? 0}',
-                              color: AppColors.coral,
+                              color: colors.coral,
                             ),
                             Container(
                               width: 1,
                               height: 40,
-                              color: AppColors.ink.withValues(alpha: 0.1),
+                              color: colors.border,
                             ),
                             _StatItem(
                               label: 'Losses',
                               value: '${stats?.losses ?? 0}',
-                              color: AppColors.teal,
+                              color: colors.teal,
                             ),
                             Container(
                               width: 1,
                               height: 40,
-                              color: AppColors.ink.withValues(alpha: 0.1),
+                              color: colors.border,
                             ),
                             _StatItem(
                               label: 'Streak',
                               value: '${stats?.streak ?? 0}',
-                              color: AppColors.gold,
+                              color: colors.gold,
                             ),
                           ],
                         ),
@@ -277,15 +293,15 @@ class HomeScreen extends ConsumerWidget {
                   // Match history
                   Text(
                     'Recent Matches',
-                    style: AppTypography.h1(color: AppColors.ink),
+                    style: AppTypography.h1(color: colors.ink),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
                     flex: 3,
                     child: matchHistory.when(
-                      loading: () => const Center(
+                      loading: () => Center(
                         child:
-                            CircularProgressIndicator(color: AppColors.coral),
+                            CircularProgressIndicator(color: colors.coral),
                       ),
                       error: (e, s) =>
                           const Center(child: Text('Error loading matches')),
@@ -295,7 +311,7 @@ class HomeScreen extends ConsumerWidget {
                             child: Text(
                               'No matches yet',
                               style: AppTypography.body(
-                                color: AppColors.ink.withValues(alpha: 0.4),
+                                color: colors.inkSubtle,
                               ),
                             ),
                           );
@@ -322,7 +338,7 @@ class HomeScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppColors.stone,
+                                color: colors.surface,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -332,10 +348,10 @@ class HomeScreen extends ConsumerWidget {
                                     height: 40,
                                     decoration: BoxDecoration(
                                       color: won
-                                          ? AppColors.gold
+                                          ? colors.gold
                                           : drew
-                                              ? AppColors.stone
-                                              : AppColors.teal,
+                                              ? colors.surface
+                                              : colors.teal,
                                       borderRadius:
                                           BorderRadius.circular(4),
                                     ),
@@ -349,7 +365,7 @@ class HomeScreen extends ConsumerWidget {
                                         Text(
                                           'vs $opponentName',
                                           style: AppTypography.body(
-                                            color: AppColors.ink,
+                                            color: colors.ink,
                                           ),
                                         ),
                                         Text(
@@ -360,12 +376,12 @@ class HomeScreen extends ConsumerWidget {
                                                   : 'Lost',
                                           style: AppTypography.caption(
                                             color: won
-                                                ? AppColors.gold
+                                                ? colors.gold
                                                 : drew
-                                                    ? AppColors.ink
+                                                    ? colors.ink
                                                         .withValues(
                                                             alpha: 0.5)
-                                                    : AppColors.teal,
+                                                    : colors.teal,
                                           ),
                                         ),
                                       ],
@@ -374,7 +390,7 @@ class HomeScreen extends ConsumerWidget {
                                   Text(
                                     '$myScore - $oppScore',
                                     style: AppTypography.timer(
-                                      color: AppColors.ink,
+                                      color: colors.ink,
                                     ),
                                   ),
                                 ],
@@ -408,6 +424,7 @@ class _StatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -416,7 +433,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: AppTypography.caption(
-            color: AppColors.ink.withValues(alpha: 0.5),
+            color: colors.inkSubtle,
           ),
         ),
       ],

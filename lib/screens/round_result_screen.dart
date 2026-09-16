@@ -171,10 +171,11 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final myAnswer = widget.isPlayer1 ? widget.player1Answer : widget.player2Answer;
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -186,7 +187,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
               Text(
                 'Round ${widget.currentRound} of ${widget.totalRounds}',
                 style: AppTypography.caption(
-                  color: AppColors.ink.withValues(alpha: 0.5),
+                  color: colors.inkSubtle,
                 ),
               ),
 
@@ -195,7 +196,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
               // Round result header
               Text(
                 'Round Complete',
-                style: AppTypography.display(color: AppColors.ink),
+                style: AppTypography.display(color: colors.ink),
               ),
 
               const SizedBox(height: 48),
@@ -215,7 +216,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                           child: Container(
                             height: 4,
                             decoration: BoxDecoration(
-                              color: AppColors.stone,
+                              color: colors.surface,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -228,10 +229,10 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: widget.isPlayer1 ? AppColors.coral : AppColors.teal,
+                              color: widget.isPlayer1 ? colors.coral : colors.teal,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppColors.gold,
+                                color: colors.gold,
                                 width: 3,
                               ),
                             ),
@@ -245,10 +246,10 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: widget.isPlayer1 ? AppColors.teal : AppColors.coral,
+                              color: widget.isPlayer1 ? colors.teal : colors.coral,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppColors.cream,
+                                color: colors.background,
                                 width: 2,
                               ),
                             ),
@@ -268,11 +269,11 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: myAnswer.isCorrect
-                        ? AppColors.gold.withValues(alpha: 0.2)
-                        : AppColors.coral.withValues(alpha: 0.1),
+                        ? colors.gold.withValues(alpha: 0.2)
+                        : colors.coral.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: myAnswer.isCorrect ? AppColors.gold : AppColors.coral,
+                      color: myAnswer.isCorrect ? colors.gold : colors.coral,
                       width: 1.5,
                     ),
                   ),
@@ -280,7 +281,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                     children: [
                       Icon(
                         myAnswer.isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: myAnswer.isCorrect ? AppColors.gold : AppColors.coral,
+                        color: myAnswer.isCorrect ? colors.gold : colors.coral,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -291,7 +292,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                             Text(
                               myAnswer.isCorrect ? 'Correct!' : 'Incorrect',
                               style: AppTypography.body(
-                                color: myAnswer.isCorrect ? AppColors.gold : AppColors.coral,
+                                color: myAnswer.isCorrect ? colors.gold : colors.coral,
                               ),
                             ),
                           ],
@@ -316,14 +317,14 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                         score: widget.isPlayer1
                             ? _player1ScoreAnim.value
                             : _player2ScoreAnim.value,
-                        color: widget.isPlayer1 ? AppColors.coral : AppColors.teal,
+                        color: widget.isPlayer1 ? colors.coral : colors.teal,
                       ),
                       _AnimatedScore(
                         label: 'Opponent',
                         score: widget.isPlayer1
                             ? _player2ScoreAnim.value
                             : _player1ScoreAnim.value,
-                        color: widget.isPlayer1 ? AppColors.teal : AppColors.coral,
+                        color: widget.isPlayer1 ? colors.teal : colors.coral,
                       ),
                     ],
                   );
@@ -338,7 +339,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
                     ? 'Final results coming up...'
                     : 'Next round starting soon...',
                 style: AppTypography.body(
-                  color: AppColors.ink.withValues(alpha: 0.4),
+                  color: colors.inkSubtle,
                 ),
               ),
 

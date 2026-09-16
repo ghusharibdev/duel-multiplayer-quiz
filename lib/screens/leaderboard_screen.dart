@@ -10,19 +10,20 @@ class LeaderboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final leaderboardAsync = ref.watch(leaderboardProvider);
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Leaderboard', style: AppTypography.h1(color: AppColors.ink)),
+        title: Text('Leaderboard', style: AppTypography.h1(color: colors.ink)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -37,15 +38,15 @@ class LeaderboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.stone,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _HeaderStat(label: 'Rank', value: '#--', color: AppColors.coral),
-                    _HeaderStat(label: 'Wins', value: '0', color: AppColors.gold),
-                    _HeaderStat(label: 'Rating', value: '1000', color: AppColors.teal),
+                    _HeaderStat(label: 'Rank', value: '#--', color: colors.coral),
+                    _HeaderStat(label: 'Wins', value: '0', color: colors.gold),
+                    _HeaderStat(label: 'Rating', value: '1000', color: colors.teal),
                   ],
                 ),
               ),
@@ -54,15 +55,15 @@ class LeaderboardScreen extends ConsumerWidget {
 
               Text(
                 'Top Players',
-                style: AppTypography.h1(color: AppColors.ink),
+                style: AppTypography.h1(color: colors.ink),
               ),
 
               const SizedBox(height: 16),
 
               Expanded(
                 child: leaderboardAsync.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.coral),
+                  loading: () => Center(
+                    child: CircularProgressIndicator(color: colors.coral),
                   ),
                   error: (e, _) => Center(child: Text('Error: $e')),
                   data: (players) {
@@ -71,7 +72,7 @@ class LeaderboardScreen extends ConsumerWidget {
                         child: Text(
                           'No players yet',
                           style: AppTypography.body(
-                            color: AppColors.ink.withValues(alpha: 0.4),
+                            color: colors.inkSubtle,
                           ),
                         ),
                       );
@@ -114,13 +115,14 @@ class _HeaderStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(value, style: AppTypography.display(color: color)),
         const SizedBox(height: 4),
         Text(label, style: AppTypography.caption(
-          color: AppColors.ink.withValues(alpha: 0.5),
+          color: colors.inkSubtle,
         )),
       ],
     );
@@ -144,14 +146,15 @@ class _LeaderboardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isCurrentUser ? AppColors.coralLight : AppColors.stone,
+        color: isCurrentUser ? colors.coralLight : colors.surface,
         borderRadius: BorderRadius.circular(12),
         border: isCurrentUser
-            ? Border.all(color: AppColors.coral, width: 1.5)
+            ? Border.all(color: colors.coral, width: 1.5)
             : null,
       ),
       child: Row(
@@ -161,18 +164,18 @@ class _LeaderboardTile extends StatelessWidget {
             child: Text(
               '#$rank',
               style: AppTypography.body(
-                color: rank <= 3 ? AppColors.gold : AppColors.ink,
+                color: rank <= 3 ? colors.gold : colors.ink,
               ),
             ),
           ),
           const SizedBox(width: 12),
           CircleAvatar(
             radius: 16,
-            backgroundColor: isCurrentUser ? AppColors.coral : AppColors.teal,
+            backgroundColor: isCurrentUser ? colors.coral : colors.teal,
             child: Text(
               name[0].toUpperCase(),
-              style: const TextStyle(
-                color: AppColors.cream,
+              style: TextStyle(
+                color: colors.background,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -183,20 +186,20 @@ class _LeaderboardTile extends StatelessWidget {
             child: Text(
               name,
               style: AppTypography.body(
-                color: isCurrentUser ? AppColors.coral : AppColors.ink,
+                color: isCurrentUser ? colors.coral : colors.ink,
               ),
             ),
           ),
           Text(
             '$wins wins',
             style: AppTypography.caption(
-              color: AppColors.ink.withValues(alpha: 0.5),
+              color: colors.inkSubtle,
             ),
           ),
           const SizedBox(width: 16),
           Text(
             '$rating',
-            style: AppTypography.timer(color: AppColors.ink),
+            style: AppTypography.timer(color: colors.ink),
           ),
         ],
       ),

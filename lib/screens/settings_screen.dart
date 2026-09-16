@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
@@ -34,7 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _toggleNotifications(bool value) async {
     if (value) {
-      // Request permission
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
@@ -45,7 +45,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             settings.authorizationStatus == AuthorizationStatus.authorized;
       });
     } else {
-      // Open app settings since we can't programmatically disable
       setState(() => _notificationsEnabled = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -63,18 +62,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(authStateProvider);
+    final colors = AppColors.of(context);
+    final themeMode = ref.watch(themeProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title:
-            Text('Settings', style: AppTypography.h1(color: AppColors.ink)),
+        title: Text('Settings', style: AppTypography.h1(color: colors.ink)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -99,17 +99,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.stone,
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           children: [
-                            // Profile circle
                             CircleAvatar(
                               radius: 20,
                               backgroundColor: isAnonymous
-                                  ? AppColors.ink.withValues(alpha: 0.1)
-                                  : AppColors.coral,
+                                  ? colors.border
+                                  : colors.coral,
                               child: Text(
                                 isAnonymous
                                     ? 'G'
@@ -118,8 +117,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         : '?'),
                                 style: TextStyle(
                                   color: isAnonymous
-                                      ? AppColors.ink.withValues(alpha: 0.4)
-                                      : AppColors.cream,
+                                      ? colors.inkSubtle
+                                      : colors.onAccent,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -135,7 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         ? 'Guest Account'
                                         : email ?? 'Account',
                                     style: AppTypography.body(
-                                      color: AppColors.ink,
+                                      color: colors.ink,
                                     ),
                                   ),
                                   Text(
@@ -143,8 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         ? 'Sign in to save your stats'
                                         : 'Signed in',
                                     style: AppTypography.caption(
-                                      color: AppColors.ink
-                                          .withValues(alpha: 0.4),
+                                      color: colors.inkSubtle,
                                     ),
                                   ),
                                 ],
@@ -159,6 +157,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
 
+              // Theme toggle
+              _SettingsTile(
+                icon: themeMode == ThemeMode.dark
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                title: 'Appearance',
+                trailing: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_rounded, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_rounded, size: 18),
+                    ),
+                  ],
+                  selected: {themeMode},
+                  onSelectionChanged: (modes) {
+                    ref.read(themeProvider.notifier).setThemeMode(modes.first);
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return colors.coral;
+                      }
+                      return colors.surfaceVariant;
+                    }),
+                    foregroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return colors.onAccent;
+                      }
+                      return colors.inkSubtle;
+                    }),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
               // Sound toggle
               _SettingsTile(
                 icon: Icons.volume_up_rounded,
@@ -168,7 +208,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: (value) {
                     setState(() => _soundEnabled = value);
                   },
-                  activeThumbColor: AppColors.coral,
+                  activeThumbColor: colors.coral,
                 ),
               ),
 
@@ -179,15 +219,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.notifications_rounded,
                 title: 'Notifications',
                 trailing: _loadingNotifications
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.inkSubtle,
+                        ),
                       )
                     : Switch(
                         value: _notificationsEnabled,
                         onChanged: _toggleNotifications,
-                        activeThumbColor: AppColors.coral,
+                        activeThumbColor: colors.coral,
                       ),
               ),
 
@@ -197,31 +240,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: 'About',
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.chevron_right_rounded,
-                  color: AppColors.ink,
+                  color: colors.ink,
                 ),
                 onTap: () {
                   showAboutDialog(
                     context: context,
                     applicationName: 'Duel',
                     applicationVersion: '1.0.0',
-                    applicationIcon: const Icon(
+                    applicationIcon: Icon(
                       Icons.sports_esports_rounded,
-                      color: AppColors.coral,
+                      color: colors.coral,
                       size: 48,
                     ),
                     children: [
                       Text(
                         'A real-time 1v1 trivia duel app built with Flutter and Firebase.',
-                        style: AppTypography.body(color: AppColors.ink),
+                        style: AppTypography.body(color: colors.ink),
                       ),
                     ],
                   );
                 },
               ),
 
-              const Spacer(),
+              const SizedBox(height: 32),
 
               // Sign out button
               TextButton(
@@ -232,7 +275,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
                 child: Text(
                   'Sign Out',
-                  style: AppTypography.body(color: AppColors.coral),
+                  style: AppTypography.body(color: colors.coral),
                 ),
               ),
 
@@ -241,9 +284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               // App version
               Text(
                 'Duel v1.0.0',
-                style: AppTypography.caption(
-                  color: AppColors.ink.withValues(alpha: 0.3),
-                ),
+                style: AppTypography.caption(color: colors.inkFaint),
                 textAlign: TextAlign.center,
               ),
 
@@ -271,22 +312,24 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: AppColors.stone,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.ink, size: 22),
+            Icon(icon, color: colors.ink, size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
-                style: AppTypography.body(color: AppColors.ink),
+                style: AppTypography.body(color: colors.ink),
               ),
             ),
             if (trailing != null) trailing!

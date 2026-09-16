@@ -15,14 +15,15 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return SizedBox(
       width: width ?? double.infinity,
       height: 56,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.coral,
-          foregroundColor: AppColors.cream,
+          backgroundColor: colors.coral,
+          foregroundColor: colors.onAccent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

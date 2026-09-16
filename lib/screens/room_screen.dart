@@ -136,16 +136,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
+        backgroundColor: colors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          icon: Icon(Icons.arrow_back_rounded, color: colors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Play with Friends', style: AppTypography.h1(color: AppColors.ink)),
+        title: Text('Play with Friends', style: AppTypography.h1(color: colors.ink)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -160,13 +161,114 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   }
 
   Widget _buildCreateJoin() {
+    final colors = AppColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 24),
 
+        // ─── Create room ───
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.add_circle_outline_rounded, size: 40, color: colors.coral),
+              const SizedBox(height: 8),
+              Text('Create a Room', style: AppTypography.h1(color: colors.ink)),
+              const SizedBox(height: 4),
+              Text(
+                'Get a code to share with your friend',
+                style: AppTypography.body(color: colors.inkSubtle),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              PrimaryButton(
+                label: _isCreating ? 'Creating...' : 'Create Room',
+                onPressed: _isCreating ? () {} : _createRoom,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // OR divider
+        Row(
+          children: [
+            Expanded(child: Container(height: 1, color: colors.border)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('OR', style: AppTypography.caption(color: colors.inkSubtle)),
+            ),
+            Expanded(child: Container(height: 1, color: colors.border)),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // ─── Join room ───
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.input_rounded, size: 40, color: colors.teal),
+              const SizedBox(height: 8),
+              Text('Join a Room', style: AppTypography.h1(color: colors.ink)),
+              const SizedBox(height: 4),
+              Text(
+                'Enter the code your friend shared',
+                style: AppTypography.body(color: colors.inkSubtle),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _codeController,
+                textAlign: TextAlign.center,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                style: AppTypography.display(color: colors.ink),
+                decoration: InputDecoration(
+                  hintText: 'ABC123',
+                  hintStyle: AppTypography.display(color: colors.inkFaint),
+                  counterText: '',
+                  filled: true,
+                  fillColor: colors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.teal),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SecondaryButton(
+                label: _isJoining ? 'Joining...' : 'Join Room',
+                onPressed: _isJoining ? () {} : _joinRoom,
+              ),
+            ],
+          ),
+        ),
+
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          Text(_error!, style: AppTypography.body(color: colors.coral), textAlign: TextAlign.center),
+        ],
+
+        const SizedBox(height: 32),
+
         // ─── Difficulty ───
-        Text('Difficulty', style: AppTypography.h1(color: AppColors.ink)),
+        Text('Difficulty', style: AppTypography.h1(color: colors.ink)),
         const SizedBox(height: 12),
         SizedBox(
           height: 44,
@@ -183,16 +285,18 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.coral : AppColors.stone,
+                    color: isSelected ? colors.coral : colors.surface,
                     borderRadius: BorderRadius.circular(22),
-                    border: isSelected ? null : Border.all(color: AppColors.ink.withValues(alpha: 0.1)),
+                    border: isSelected ? null : Border.all(color: colors.border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Icon(d.icon, size: 16, color: isSelected ? AppColors.cream : AppColors.ink),
+                      Icon(d.icon, size: 16, color: isSelected ? colors.background : colors.ink),
                       const SizedBox(width: 6),
-                      Text(d.label, style: AppTypography.body(color: isSelected ? AppColors.cream : AppColors.ink)),
+                      Text(d.label, style: AppTypography.body(color: isSelected ? colors.background : colors.ink)),
                     ],
                   ),
                 ),
@@ -204,7 +308,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         const SizedBox(height: 24),
 
         // ─── Category ───
-        Text('Topic', style: AppTypography.h1(color: AppColors.ink)),
+        Text('Topic', style: AppTypography.h1(color: colors.ink)),
         const SizedBox(height: 12),
         // Use Wrap so all 25 categories are visible without fixed height
         Wrap(
@@ -235,128 +339,29 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           ],
         ),
 
-        const SizedBox(height: 24),
-
-        // ─── Create room ───
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.stone,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              const Icon(Icons.add_circle_outline_rounded, size: 40, color: AppColors.coral),
-              const SizedBox(height: 8),
-              Text('Create a Room', style: AppTypography.h1(color: AppColors.ink)),
-              const SizedBox(height: 4),
-              Text(
-                'Get a code to share with your friend',
-                style: AppTypography.body(color: AppColors.ink.withValues(alpha: 0.5)),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              PrimaryButton(
-                label: _isCreating ? 'Creating...' : 'Create Room',
-                onPressed: _isCreating ? () {} : _createRoom,
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // OR divider
-        Row(
-          children: [
-            Expanded(child: Container(height: 1, color: AppColors.ink.withValues(alpha: 0.1))),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('OR', style: AppTypography.caption(color: AppColors.ink.withValues(alpha: 0.4))),
-            ),
-            Expanded(child: Container(height: 1, color: AppColors.ink.withValues(alpha: 0.1))),
-          ],
-        ),
-
-        const SizedBox(height: 20),
-
-        // ─── Join room ───
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.stone,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              const Icon(Icons.input_rounded, size: 40, color: AppColors.teal),
-              const SizedBox(height: 8),
-              Text('Join a Room', style: AppTypography.h1(color: AppColors.ink)),
-              const SizedBox(height: 4),
-              Text(
-                'Enter the code your friend shared',
-                style: AppTypography.body(color: AppColors.ink.withValues(alpha: 0.5)),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _codeController,
-                textAlign: TextAlign.center,
-                textCapitalization: TextCapitalization.characters,
-                maxLength: 6,
-                style: AppTypography.display(color: AppColors.ink),
-                decoration: InputDecoration(
-                  hintText: 'ABC123',
-                  hintStyle: AppTypography.display(color: AppColors.ink.withValues(alpha: 0.2)),
-                  counterText: '',
-                  filled: true,
-                  fillColor: AppColors.cream,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.teal),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SecondaryButton(
-                label: _isJoining ? 'Joining...' : 'Join Room',
-                onPressed: _isJoining ? () {} : _joinRoom,
-              ),
-            ],
-          ),
-        ),
-
-        if (_error != null) ...[
-          const SizedBox(height: 16),
-          Text(_error!, style: AppTypography.body(color: AppColors.coral), textAlign: TextAlign.center),
-        ],
-
         const SizedBox(height: 32),
       ],
     );
   }
 
   Widget _buildCodeDisplay() {
+    final colors = AppColors.of(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const SizedBox(height: 40),
-        Icon(Icons.hourglass_top_rounded, size: 64, color: AppColors.coral.withValues(alpha: 0.6)),
+        Icon(Icons.hourglass_top_rounded, size: 64, color: colors.coral.withValues(alpha: 0.6)),
         const SizedBox(height: 24),
-        Text('Room Created!', style: AppTypography.display(color: AppColors.ink)),
+        Text('Room Created!', style: AppTypography.display(color: colors.ink)),
         const SizedBox(height: 8),
-        Text('Share this code with your friend', style: AppTypography.body(color: AppColors.ink.withValues(alpha: 0.5))),
+        Text('Share this code with your friend', style: AppTypography.body(color: colors.inkSubtle)),
         const SizedBox(height: 32),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
           decoration: BoxDecoration(
-            color: AppColors.stone,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.coral.withValues(alpha: 0.3), width: 2),
+            border: Border.all(color: colors.coral.withValues(alpha: 0.3), width: 2),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -364,7 +369,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
             children: [
               Text(
                 _createdCode!,
-                style: AppTypography.timer(color: AppColors.coral).copyWith(letterSpacing: 4),
+                style: AppTypography.timer(color: colors.coral).copyWith(letterSpacing: 4),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(width: 16),
@@ -375,7 +380,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                     const SnackBar(content: Text('Code copied!'), duration: Duration(seconds: 2)),
                   );
                 },
-                icon: const Icon(Icons.copy_rounded, color: AppColors.coral),
+                icon: Icon(Icons.copy_rounded, color: colors.coral),
               ),
               IconButton(
                 onPressed: () {
@@ -384,13 +389,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                     subject: 'Duel Room Invite',
                   );
                 },
-                icon: const Icon(Icons.share_rounded, color: AppColors.teal),
+                icon: Icon(Icons.share_rounded, color: colors.teal),
               ),
             ],
           ),
         ),
         const SizedBox(height: 32),
-        Text('Waiting for opponent to join...', style: AppTypography.body(color: AppColors.ink.withValues(alpha: 0.4))),
+        Text('Waiting for opponent to join...', style: AppTypography.body(color: colors.inkSubtle)),
         const SizedBox(height: 12),
         // Animated waiting indicator
         SizedBox(
@@ -398,7 +403,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           height: 24,
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
-            color: AppColors.coral.withValues(alpha: 0.6),
+            color: colors.coral.withValues(alpha: 0.6),
           ),
         ),
         const SizedBox(height: 48),
@@ -451,22 +456,23 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.coral.withValues(alpha: 0.12) : AppColors.stone,
+          color: isSelected ? colors.coral.withValues(alpha: 0.12) : colors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? AppColors.coral : Colors.transparent, width: 2),
+          border: Border.all(color: isSelected ? colors.coral : Colors.transparent, width: 2),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: isSelected ? AppColors.coral : AppColors.ink.withValues(alpha: 0.6)),
+            Icon(icon, size: 18, color: isSelected ? colors.coral : colors.inkSubtle),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(label, style: AppTypography.caption(color: isSelected ? AppColors.coral : AppColors.ink),
+              child: Text(label, style: AppTypography.caption(color: isSelected ? colors.coral : colors.ink),
                 maxLines: 2, overflow: TextOverflow.ellipsis),
             ),
           ],

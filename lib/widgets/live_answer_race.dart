@@ -69,6 +69,7 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -85,7 +86,7 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                 child: Container(
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.stone,
+                    color: colors.surfaceVariant,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -97,7 +98,7 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                 child: Icon(
                   Icons.flag_rounded,
                   size: 12,
-                  color: AppColors.ink.withValues(alpha: 0.3),
+                  color: colors.inkFaint,
                 ),
               ),
               // Player 1 marker
@@ -111,9 +112,9 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                       width: 16,
                       height: 16,
                       decoration: BoxDecoration(
-                        color: AppColors.coral,
+                        color: colors.coral,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.cream, width: 2),
+                        border: Border.all(color: colors.background, width: 2),
                       ),
                     ),
                   );
@@ -130,9 +131,9 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                       width: 16,
                       height: 16,
                       decoration: BoxDecoration(
-                        color: AppColors.teal,
+                        color: colors.teal,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.cream, width: 2),
+                        border: Border.all(color: colors.background, width: 2),
                       ),
                     ),
                   );

@@ -11,6 +11,7 @@ import 'screens/home_screen.dart';
 import 'theme/app_colors.dart';
 import 'providers/storage_service.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -25,16 +26,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Register background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // Sign in anonymously
   await FirebaseAuth.instance.signInAnonymously();
 
-  // Create player document if it doesn't exist
   await _ensurePlayerDocument();
 
-  // Initialize notifications
   await NotificationService().init();
 
   runApp(
@@ -77,7 +74,6 @@ Future<void> _ensurePlayerDocument() async {
         'lastSeen': FieldValue.serverTimestamp(),
       });
     } else {
-      // Update lastSeen on app open
       await FirebaseFirestore.instance
           .collection('players')
           .doc(user.uid)
@@ -90,29 +86,74 @@ Future<void> _ensurePlayerDocument() async {
   }
 }
 
-class DuelApp extends StatelessWidget {
+ThemeData _buildTheme(AppColors colors, Brightness brightness) {
+  return ThemeData(
+    brightness: brightness,
+    scaffoldBackgroundColor: colors.background,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: colors.coral,
+      brightness: brightness,
+      primary: colors.coral,
+      secondary: colors.teal,
+      surface: colors.surface,
+      error: colors.coral,
+      onPrimary: colors.onAccent,
+      onSecondary: colors.onAccent,
+      onSurface: colors.ink,
+      onError: colors.onAccent,
+    ),
+    useMaterial3: true,
+    splashColor: Colors.transparent,
+    highlightColor: colors.surfaceVariant,
+    cardColor: colors.card,
+    dividerColor: colors.border,
+    extensions: [colors],
+    appBarTheme: AppBarTheme(
+      backgroundColor: colors.background,
+      foregroundColor: colors.ink,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.coral;
+        return colors.inkSubtle;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return colors.coralDim;
+        return colors.surfaceVariant;
+      }),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: colors.surfaceVariant,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colors.coral),
+      ),
+      labelStyle: TextStyle(color: colors.inkSubtle),
+      hintStyle: TextStyle(color: colors.inkFaint),
+    ),
+  );
+}
+
+class DuelApp extends ConsumerWidget {
   const DuelApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp(
       title: 'Duel',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: AppColors.cream,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.coral,
-          primary: AppColors.coral,
-          secondary: AppColors.teal,
-          surface: AppColors.stone,
-          onPrimary: AppColors.cream,
-          onSecondary: AppColors.cream,
-          onSurface: AppColors.ink,
-        ),
-        useMaterial3: true,
-        splashColor: Colors.transparent,
-        highlightColor: AppColors.stone,
-      ),
+      theme: _buildTheme(AppColors.light(), Brightness.light),
+      darkTheme: _buildTheme(AppColors.dark(), Brightness.dark),
+      themeMode: themeMode,
       home: const HomeScreen(),
     );
   }

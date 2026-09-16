@@ -52,6 +52,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     ref.listen(currentMatchProvider, (previous, next) {
       final match = next.value;
       if (match != null && match.status.name == 'active' && mounted) {
@@ -67,7 +68,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
     final prefs = ref.watch(matchPreferencesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -83,7 +84,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                   final dots = List.filled(dotCount, '.').join();
                   return Text(
                     'Finding an opponent$dots',
-                    style: AppTypography.h1(color: AppColors.ink),
+                    style: AppTypography.h1(color: colors.ink),
                     textAlign: TextAlign.center,
                   );
                 },
@@ -98,7 +99,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.coral.withValues(alpha: 0.1),
+                    color: colors.coral.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -108,7 +109,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                       if (prefs.difficulty != null)
                         _difficultyLabel(prefs.difficulty!),
                     ].join(' · '),
-                    style: AppTypography.caption(color: AppColors.coral),
+                    style: AppTypography.caption(color: colors.coral),
                   ),
                 ),
 
@@ -131,7 +132,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.coral.withValues(alpha: 0.2),
+                            color: colors.coral.withValues(alpha: 0.2),
                             width: 2,
                           ),
                         ),
@@ -146,7 +147,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.coral.withValues(alpha: 0.3),
+                            color: colors.coral.withValues(alpha: 0.3),
                             width: 2,
                           ),
                         ),
@@ -157,17 +158,17 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: AppColors.stone,
+                        color: colors.card,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.coral.withValues(alpha: 0.4),
+                          color: colors.coral.withValues(alpha: 0.4),
                           width: 2.5,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.radar_rounded,
                         size: 26,
-                        color: AppColors.coral,
+                        color: colors.coral,
                       ),
                     ),
                   ],
@@ -187,13 +188,13 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                         Icon(
                           Icons.wifi_find_rounded,
                           size: 32,
-                          color: AppColors.ink.withValues(alpha: 0.2),
+                          color: colors.inkFaint,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Scanning for nearby players...',
                           style: AppTypography.caption(
-                            color: AppColors.ink.withValues(alpha: 0.4),
+                            color: colors.inkSubtle,
                           ),
                         ),
                       ],
@@ -217,7 +218,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
                           Text(
                             '${players.length} player${players.length == 1 ? '' : 's'} looking for a match',
                             style: AppTypography.caption(
-                              color: AppColors.ink.withValues(alpha: 0.6),
+                              color: colors.inkSubtle,
                             ),
                           ),
                         ],
@@ -250,7 +251,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen>
               Text(
                 'Tap Cancel to go back',
                 style: AppTypography.caption(
-                  color: AppColors.ink.withValues(alpha: 0.4),
+                  color: colors.inkSubtle,
                 ),
               ),
 
@@ -299,14 +300,15 @@ class _NearbyPlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       width: 110,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.stone,
+        color: colors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.teal.withValues(alpha: 0.3),
+          color: colors.teal.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -316,11 +318,11 @@ class _NearbyPlayerCard extends StatelessWidget {
           // Avatar
           CircleAvatar(
             radius: 18,
-            backgroundColor: AppColors.teal.withValues(alpha: 0.2),
+            backgroundColor: colors.teal.withValues(alpha: 0.2),
             child: Text(
               name[0].toUpperCase(),
-              style: const TextStyle(
-                color: AppColors.teal,
+              style: TextStyle(
+                color: colors.teal,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -329,7 +331,7 @@ class _NearbyPlayerCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             name,
-            style: AppTypography.caption(color: AppColors.ink),
+            style: AppTypography.caption(color: colors.ink),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,

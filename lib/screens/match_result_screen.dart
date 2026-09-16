@@ -30,8 +30,9 @@ class MatchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -45,10 +46,10 @@ class MatchResultScreen extends StatelessWidget {
                 height: 100,
                 decoration: BoxDecoration(
                   color: _iWon
-                      ? AppColors.gold
+                      ? colors.gold
                       : _isDraw
-                          ? AppColors.stone
-                          : AppColors.teal.withValues(alpha: 0.2),
+                          ? colors.surface
+                          : colors.teal.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -59,10 +60,10 @@ class MatchResultScreen extends StatelessWidget {
                           : Icons.sentiment_dissatisfied_rounded,
                   size: 48,
                   color: _iWon
-                      ? AppColors.cream
+                      ? colors.background
                       : _isDraw
-                          ? AppColors.ink
-                          : AppColors.teal,
+                          ? colors.ink
+                          : colors.teal,
                 ),
               ).animate().scale(duration: 400.ms, curve: Curves.easeOut),
 
@@ -73,10 +74,10 @@ class MatchResultScreen extends StatelessWidget {
                 _isDraw ? 'Draw' : (_iWon ? 'You won' : 'You lost'),
                 style: AppTypography.display(
                   color: _iWon
-                      ? AppColors.gold
+                      ? colors.gold
                       : _isDraw
-                          ? AppColors.ink
-                          : AppColors.teal,
+                          ? colors.ink
+                          : colors.teal,
                 ),
                 textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
@@ -87,7 +88,7 @@ class MatchResultScreen extends StatelessWidget {
               Text(
                 '$_myScore - $_oppScore',
                 style: AppTypography.scoreDisplay(
-                  color: AppColors.ink,
+                  color: colors.ink,
                 ),
                 textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
@@ -132,7 +133,7 @@ class MatchResultScreen extends StatelessWidget {
                 icon: const Icon(Icons.share_rounded, size: 18),
                 label: Text(
                   'Share Result',
-                  style: AppTypography.body(color: AppColors.ink),
+                  style: AppTypography.body(color: colors.ink),
                 ),
               ),
 

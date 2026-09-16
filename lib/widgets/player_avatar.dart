@@ -17,13 +17,15 @@ class PlayerAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        color: colors.surfaceVariant,
         border: Border.all(
-          color: isActive ? ringColor : AppColors.stone,
+          color: isActive ? ringColor : colors.border,
           width: 3,
         ),
       ),
@@ -33,7 +35,7 @@ class PlayerAvatar extends StatelessWidget {
           style: TextStyle(
             fontSize: size * 0.35,
             fontWeight: FontWeight.w600,
-            color: isActive ? ringColor : AppColors.stone,
+            color: isActive ? ringColor : colors.inkFaint,
           ),
         ),
       ),
