@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/match.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_colors.dart';
@@ -43,6 +44,7 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
   late Animation<int> _player2ScoreAnim;
   Timer? _autoAdvanceTimer;
   bool _navigated = false;
+  bool _waitingForCompletion = false;
 
   @override
   void initState() {
@@ -113,47 +115,71 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
 
   void _navigateToNext() {
     if (!mounted || _navigated) return;
-    _navigated = true;
 
     if (widget.currentRound >= widget.totalRounds) {
-      // Match is complete — watch for the match to update
+      // Last round — watch for match completion, do NOT set _navigated yet
       _waitForMatchCompletion();
     } else {
+      _navigated = true;
       // Next round
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => MatchScreen(matchId: widget.matchId),
+          builder: (_) => MatchScreen(
+            matchId: widget.matchId,
+            startRound: widget.currentRound + 1,
+          ),
         ),
       );
     }
   }
 
   void _waitForMatchCompletion() {
-    // Listen for the match to be marked completed
-    ref.listen<AsyncValue<Match?>>(currentMatchProvider, (previous, next) {
-      final match = next.value;
-      if (match != null && match.isFinished && mounted && !_navigated) {
-        _navigated = true;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => MatchResultScreen(
-              matchId: widget.matchId,
-              player1Score: match.player1Score,
-              player2Score: match.player2Score,
-              player1Id: match.player1Id,
-            ),
-          ),
-        );
-      }
-    });
+    _waitingForCompletion = true;
+    setState(() {});
 
-    // Also navigate after a delay as fallback
-    Timer(const Duration(seconds: 2), () {
-      if (mounted && !_navigated) {
-        _navigated = true;
-        final matchAsync = ref.read(currentMatchProvider);
-        final match = matchAsync.value;
-        if (match != null) {
+    // Primary: listen via Riverpod stream — fires when match doc updates
+    // (set up in build() via ref.listen)
+
+    // Fallback: fetch the match doc directly after a short delay
+    Timer(const Duration(seconds: 3), () async {
+      if (!mounted || _navigated) return;
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('matches')
+            .doc(widget.matchId)
+            .get();
+        if (!mounted || _navigated) return;
+        if (doc.exists) {
+          final match = Match.fromFirestore(doc);
+          if (mounted) {
+            _navigated = true;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => MatchResultScreen(
+                  matchId: widget.matchId,
+                  player1Score: match.player1Score,
+                  player2Score: match.player2Score,
+                  player1Id: match.player1Id,
+                ),
+              ),
+            );
+          }
+        }
+      } catch (_) {}
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final myAnswer = widget.isPlayer1 ? widget.player1Answer : widget.player2Answer;
+
+    // Listen for match completion — ref.listen must be inside build() in Riverpod 3.x.
+    if (_waitingForCompletion) {
+      ref.listen<AsyncValue<Match?>>(matchByIdProvider(widget.matchId), (previous, next) {
+        final match = next.value;
+        if (match != null && match.isFinished && mounted && !_navigated) {
+          _navigated = true;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => MatchResultScreen(
@@ -165,14 +191,8 @@ class _RoundResultScreenState extends ConsumerState<RoundResultScreen>
             ),
           );
         }
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final myAnswer = widget.isPlayer1 ? widget.player1Answer : widget.player2Answer;
+      });
+    }
 
     return Scaffold(
       backgroundColor: colors.background,

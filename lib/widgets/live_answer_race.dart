@@ -71,8 +71,8 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final trackWidth = constraints.maxWidth - 32;
@@ -84,21 +84,21 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                 right: 16,
                 top: 20,
                 child: Container(
-                  height: 4,
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: colors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(2),
+                    color: colors.surfaceVariant.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
               // Finish line
               Positioned(
                 right: 16,
-                top: 16,
+                top: 14,
                 child: Icon(
                   Icons.flag_rounded,
-                  size: 12,
-                  color: colors.inkFaint,
+                  size: 14,
+                  color: colors.ink.withValues(alpha: 0.5),
                 ),
               ),
               // Player 1 marker
@@ -107,14 +107,21 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                 builder: (context, _) {
                   return Positioned(
                     left: 16 + (_player1Anim.value * trackWidth).clamp(0.0, trackWidth),
-                    top: 14,
+                    top: 12,
                     child: Container(
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         color: colors.coral,
                         shape: BoxShape.circle,
-                        border: Border.all(color: colors.background, width: 2),
+                        border: Border.all(color: colors.background, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.coral.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -126,14 +133,21 @@ class _LiveAnswerRaceState extends State<LiveAnswerRace>
                 builder: (context, _) {
                   return Positioned(
                     left: 16 + (_player2Anim.value * trackWidth).clamp(0.0, trackWidth),
-                    top: 14,
+                    top: 12,
                     child: Container(
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         color: colors.teal,
                         shape: BoxShape.circle,
-                        border: Border.all(color: colors.background, width: 2),
+                        border: Border.all(color: colors.background, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.teal.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
                   );

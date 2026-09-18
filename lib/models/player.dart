@@ -101,6 +101,7 @@ class Player {
     return {
       'displayName': displayName,
       'email': email,
+      'isAnonymous': isAnonymous,
       'wins': stats.wins,
       'losses': stats.losses,
       'draws': stats.draws,

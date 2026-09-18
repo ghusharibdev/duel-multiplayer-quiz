@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/match.dart';
 import '../providers/game_provider.dart';
@@ -11,7 +12,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/secondary_button.dart';
-import 'match_screen.dart';
+import 'countdown_screen.dart';
 
 class RoomScreen extends ConsumerStatefulWidget {
   const RoomScreen({super.key});
@@ -28,11 +29,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   String? _createdMatchId;
   String? _error;
 
-  // Category / difficulty state
+  // Category / difficulty / rounds state
   int? _selectedCategoryId;
   String _selectedCategoryName = 'Any Category';
   int? _selectedDifficulty;
+  int _selectedRounds = 5;
   StreamSubscription? _matchSub;
+
+  static const List<int> _roundOptions = [3, 5, 7, 10];
 
   static const List<_DifficultyOption> _difficulties = [
     _DifficultyOption(label: 'Any', value: null, icon: Icons.all_inclusive_rounded),
@@ -40,6 +44,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     _DifficultyOption(label: 'Medium', value: 2, icon: Icons.sentiment_neutral_rounded),
     _DifficultyOption(label: 'Hard', value: 3, icon: Icons.sentiment_dissatisfied_rounded),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(gameServiceProvider).resetState();
+    });
+  }
 
   @override
   void dispose() {
@@ -59,6 +71,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         categoryId: _selectedCategoryId,
         difficulty: _selectedDifficulty,
         categoryName: _selectedCategoryName,
+        totalRounds: _selectedRounds,
       );
 
       final code = await ref.read(roomServiceProvider).createRoom(prefs);
@@ -84,10 +97,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       _matchSub?.cancel();
       _matchSub = matchDocStream(matchId).listen((match) {
         if (match != null && match.status == MatchStatus.active && mounted) {
-          // Opponent joined — navigate to match
+          // Opponent joined — navigate to countdown screen
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => MatchScreen(matchId: matchId),
+              builder: (_) => CountdownScreen(
+                matchId: matchId,
+                match: match,
+              ),
             ),
           );
         }
@@ -115,11 +131,23 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     try {
       final matchId = await ref.read(roomServiceProvider).joinRoom(code);
       if (matchId != null && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => MatchScreen(matchId: matchId),
-          ),
-        );
+        // Fetch match data for countdown screen
+        final doc = await FirebaseFirestore.instance
+            .collection('matches')
+            .doc(matchId)
+            .get();
+        if (!mounted) return;
+        if (doc.exists) {
+          final match = Match.fromFirestore(doc);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => CountdownScreen(
+                matchId: matchId,
+                match: match,
+              ),
+            ),
+          );
+        }
       } else {
         setState(() {
           _error = 'No room found with that code';
@@ -166,6 +194,43 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 24),
+
+        // ─── Selected preferences summary ───
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.tune_rounded, size: 18, color: colors.inkSubtle),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _PreferenceChip(
+                      label: _selectedCategoryName == 'Any Category' ? 'Any Topic' : _selectedCategoryName,
+                      color: colors.teal,
+                    ),
+                    _PreferenceChip(
+                      label: _selectedDifficulty == null ? 'Any Difficulty' : _difficultyLabel(_selectedDifficulty!),
+                      color: colors.coral,
+                    ),
+                    _PreferenceChip(
+                      label: '$_selectedRounds Rounds',
+                      color: colors.gold,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
 
         // ─── Create room ───
         Container(
@@ -267,6 +332,44 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
         const SizedBox(height: 32),
 
+        // ─── Number of rounds ───
+        Text('Rounds', style: AppTypography.h1(color: colors.ink)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _roundOptions.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final r = _roundOptions[index];
+              final isSelected = _selectedRounds == r;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedRounds = r),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? colors.coral : colors.surface,
+                    borderRadius: BorderRadius.circular(22),
+                    border: isSelected ? null : Border.all(color: colors.border),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$r',
+                      style: AppTypography.body(
+                        color: isSelected ? colors.background : colors.ink,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // ─── Difficulty ───
         Text('Difficulty', style: AppTypography.h1(color: colors.ink)),
         const SizedBox(height: 12),
@@ -291,8 +394,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Icon(d.icon, size: 16, color: isSelected ? colors.background : colors.ink),
                       const SizedBox(width: 6),
@@ -310,13 +412,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         // ─── Category ───
         Text('Topic', style: AppTypography.h1(color: colors.ink)),
         const SizedBox(height: 12),
-        // Use Wrap so all 25 categories are visible without fixed height
+        // Compact category chips
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            // "Any" option
-            _CategoryTile(
+            _CompactChip(
               label: 'Any',
               icon: Icons.shuffle_rounded,
               isSelected: _selectedCategoryId == null,
@@ -325,9 +426,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                 _selectedCategoryName = 'Any Category';
               }),
             ),
-            // All categories from API
             for (final entry in OpenTriviaService.categories.entries)
-              _CategoryTile(
+              _CompactChip(
                 label: entry.value,
                 icon: _categoryIcon(entry.key),
                 isSelected: _selectedCategoryId == entry.key,
@@ -446,13 +546,22 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
+
+
+class _DifficultyOption {
+  final String label;
+  final int? value;
+  final IconData icon;
+  const _DifficultyOption({required this.label, required this.value, required this.icon});
+}
+
+class _CompactChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _CategoryTile({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _CompactChip({required this.label, required this.icon, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -461,19 +570,25 @@ class _CategoryTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? colors.coral.withValues(alpha: 0.12) : colors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? colors.coral : Colors.transparent, width: 2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? colors.coral : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: isSelected ? colors.coral : colors.inkSubtle),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(label, style: AppTypography.caption(color: isSelected ? colors.coral : colors.ink),
-                maxLines: 2, overflow: TextOverflow.ellipsis),
+            Icon(icon, size: 14, color: isSelected ? colors.coral : colors.inkSubtle),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTypography.caption(
+                color: isSelected ? colors.coral : colors.ink,
+              ),
             ),
           ],
         ),
@@ -482,9 +597,37 @@ class _CategoryTile extends StatelessWidget {
   }
 }
 
-class _DifficultyOption {
+class _PreferenceChip extends StatelessWidget {
   final String label;
-  final int? value;
-  final IconData icon;
-  const _DifficultyOption({required this.label, required this.value, required this.icon});
+  final Color color;
+
+  const _PreferenceChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+String _difficultyLabel(int d) {
+  switch (d) {
+    case 1: return 'Easy';
+    case 2: return 'Medium';
+    case 3: return 'Hard';
+    default: return 'Any';
+  }
 }

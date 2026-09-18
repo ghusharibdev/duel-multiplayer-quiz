@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/match.dart';
@@ -14,11 +16,13 @@ class MatchPreferences {
   final int? categoryId;
   final int? difficulty;
   final String categoryName;
+  final int totalRounds;
 
   const MatchPreferences({
     this.categoryId,
     this.difficulty,
     this.categoryName = 'Any',
+    this.totalRounds = 5,
   });
 }
 
@@ -26,11 +30,12 @@ class MatchPreferencesNotifier extends Notifier<MatchPreferences> {
   @override
   MatchPreferences build() => const MatchPreferences();
 
-  void update({int? categoryId, int? difficulty, String? categoryName}) {
+  void update({int? categoryId, int? difficulty, String? categoryName, int? totalRounds}) {
     state = MatchPreferences(
       categoryId: categoryId ?? state.categoryId,
       difficulty: difficulty ?? state.difficulty,
       categoryName: categoryName ?? state.categoryName,
+      totalRounds: totalRounds ?? state.totalRounds,
     );
   }
 
@@ -132,23 +137,70 @@ class GameService {
 
   Match? get currentMatch => _currentMatch;
 
+  /// Reset all transient state — call when starting a fresh session.
+  void resetState() {
+    _matchSubscription?.cancel();
+    _matchSubscription = null;
+    _currentMatch = null;
+    _roundTimeout?.cancel();
+    _roundTimeout = null;
+    _resolving = false;
+    _submittingAnswer = false;
+    _statsUpdated = false;
+    _timeoutRound = -1;
+    _roundStartTime = null;
+  }
+
   /// Start matchmaking: look for an existing waiting match, or create one.
-  Future<void> startMatchmaking() async {
+  /// Returns the match ID when done.
+  Future<String?> startMatchmaking() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
+    resetState();
     await _ensurePlayerExists(user);
 
     final prefs = ref.read(matchPreferencesProvider);
 
-    // Try to join an existing compatible waiting match (exclude private rooms)
+    // Delete stale WAITING matches for this user (as player1 AND player2).
+    // Only delete 'waiting' matches — never delete 'active' matches as they
+    // may have an opponent already connected.
+    final p1Matches = await FirebaseFirestore.instance
+        .collection('matches')
+        .where('player1Id', isEqualTo: user.uid)
+        .get();
+    for (final doc in p1Matches.docs) {
+      final status = doc.data()['status'];
+      if (status == 'waiting') {
+        await doc.reference.delete();
+      }
+    }
+
+    final p2Matches = await FirebaseFirestore.instance
+        .collection('matches')
+        .where('player2Id', isEqualTo: user.uid)
+        .get();
+    for (final doc in p2Matches.docs) {
+      final status = doc.data()['status'];
+      if (status == 'waiting') {
+        await doc.reference.delete();
+      }
+    }
+
+    // Fetch open matches and sort newest first client-side
     final waitingSnapshot = await FirebaseFirestore.instance
         .collection('matches')
         .where('status', isEqualTo: 'waiting')
-        .limit(100)
         .get();
 
-    for (final doc in waitingSnapshot.docs) {
+    final docs = waitingSnapshot.docs.toList()
+      ..sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        return bTime.compareTo(aTime);
+      });
+
+    for (final doc in docs) {
       final data = doc.data();
       if (data['player1Id'] == user.uid) continue;
       if (data['isPrivate'] == true) continue; // skip private rooms
@@ -165,12 +217,13 @@ class GameService {
 
       if (categoryCompatible && difficultyCompatible) {
         await _joinMatch(doc.id);
-        return;
+        return doc.id;
       }
     }
 
     // No match found — create one and LISTEN for someone to join
-    await _createMatch(prefs);
+    final matchId = await _createMatch(prefs);
+    return matchId;
   }
 
   Future<void> _ensurePlayerExists(User user) async {
@@ -211,12 +264,13 @@ class GameService {
     }
   }
 
-  Future<void> _createMatch(MatchPreferences prefs) async {
+  Future<String> _createMatch(MatchPreferences prefs) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
+    final numQuestions = prefs.totalRounds;
     final questions = await _triviaService.fetchRandomQuestions(
-      5,
+      numQuestions,
       categoryId: prefs.categoryId,
       difficulty: prefs.difficulty,
     );
@@ -233,24 +287,25 @@ class GameService {
       'player1Score': 0,
       'player2Score': 0,
       'currentRound': 0,
-      'totalRounds': 5,
+      'totalRounds': numQuestions,
       'status': 'waiting',
       'isPrivate': false,
       'categoryId': prefs.categoryId,
       'categoryName': prefs.categoryName,
       'difficulty': prefs.difficulty,
-      'rounds': questions
-          .map((q) => {
-                'questionId': q.id,
-                'questionText': q.text,
-                'options': q.options,
-                'correctIndex': q.correctIndex,
-                'category': q.category,
-                'player1Answer': null,
-                'player2Answer': null,
-                'resolved': false,
-              })
-          .toList(),
+      'rounds': {
+        for (int i = 0; i < questions.length; i++)
+          '$i': {
+            'questionId': questions[i].id,
+            'questionText': questions[i].text,
+            'options': questions[i].options,
+            'correctIndex': questions[i].correctIndex,
+            'category': questions[i].category,
+            'player1Answer': null,
+            'player2Answer': null,
+            'resolved': false,
+          },
+      },
       'createdAt': FieldValue.serverTimestamp(),
       'completedAt': null,
     };
@@ -260,6 +315,7 @@ class GameService {
 
     _statsUpdated = false;
     _listenToMatch(docRef.id);
+    return docRef.id;
   }
 
   Future<void> _joinMatch(String matchId) async {
@@ -269,27 +325,40 @@ class GameService {
     final displayName =
         user.isAnonymous ? 'Guest' : (user.displayName?.isNotEmpty == true ? user.displayName! : user.email?.split('@').first ?? 'Player');
 
+    // Use a transaction to atomically check-and-join, preventing two
+    // players from joining the same match simultaneously.
+    final matchRef = FirebaseFirestore.instance.collection('matches').doc(matchId);
+    String? player1Id;
+    final joined = await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snap = await transaction.get(matchRef);
+      if (!snap.exists) return false;
+      final data = snap.data()!;
+      if (data['status'] != 'waiting' || (data['player2Id'] as String?)?.isNotEmpty == true) {
+        return false; // already joined or not waiting
+      }
+      player1Id = data['player1Id'] as String?;
+      transaction.update(matchRef, {
+        'player2Id': user.uid,
+        'player2Name': displayName,
+        'status': 'active',
+        'currentRound': 1,
+      });
+      return true;
+    });
+
+    if (!joined) {
+      throw Exception('Match is no longer available');
+    }
+
     // Notify the waiting player
-    final matchDoc = await FirebaseFirestore.instance
-        .collection('matches')
-        .doc(matchId)
-        .get();
-    final player1Id = matchDoc.data()?['player1Id'] as String?;
     if (player1Id != null) {
       NotificationService.sendToPlayer(
-        targetUid: player1Id,
+        targetUid: player1Id!,
         title: 'Match Found!',
         body: '$displayName joined your match',
         data: {'matchId': matchId, 'type': 'match_joined'},
       );
     }
-
-    await FirebaseFirestore.instance.collection('matches').doc(matchId).update({
-      'player2Id': user.uid,
-      'player2Name': displayName,
-      'status': 'active',
-      'currentRound': 1,
-    });
 
     _statsUpdated = false;
     _listenToMatch(matchId);
@@ -301,22 +370,31 @@ class GameService {
         .collection('matches')
         .doc(matchId)
         .snapshots()
-        .listen((doc) {
+        .listen((doc) async {
       if (doc.exists) {
         _currentMatch = Match.fromFirestore(doc);
 
-        if (_currentMatch!.currentRoundData != null &&
-            !_currentMatch!.currentRoundData!.resolved) {
+        final m = _currentMatch!;
+        final roundData = m.currentRoundData;
+
+        if (roundData != null && !roundData.resolved) {
+          // Record the round start time on the first update for this round
+          if (_roundStartTime == null || _timeoutRound != m.currentRound) {
+            _roundStartTime = DateTime.now();
+          }
           _startRoundTimeout();
+          // Trigger resolution automatically if both players have submitted answers
+          if (roundData.bothAnswered) {
+            await _resolveRoundIfReady();
+          }
         }
 
-        if (_currentMatch!.isFinished) {
+        if (m.isFinished) {
           _roundTimeout?.cancel();
           if (!_statsUpdated) {
             _statsUpdated = true;
             _updatePlayerStats();
 
-            final m = _currentMatch!;
             final isDraw = m.player1Score == m.player2Score;
             final p1Won = m.player1Score > m.player2Score;
             NotificationService.sendMatchResult(
@@ -329,6 +407,8 @@ class GameService {
           }
         }
       }
+    }, onError: (error) {
+      debugPrint('[GameService] Stream error for match $matchId: $error');
     });
   }
 
@@ -347,30 +427,30 @@ class GameService {
     if (match.currentRound == _timeoutRound) return;
 
     _timeoutRound = match.currentRound;
+    // Record the round start time when the timeout begins for a new round.
+    // This is used by _getAnswerTimeMs to compute how fast the player answered.
     _roundStartTime = DateTime.now();
 
     _roundTimeout = Timer(const Duration(seconds: 20), () {
-      _resolveRoundOnTimeout();
+      _resolveRoundOnTimeout().catchError((e) {
+        debugPrint('[GameService] Timeout resolution error: $e');
+      });
     });
   }
 
   Future<void> _resolveRoundOnTimeout() async {
-    final match = _currentMatch;
-    if (match == null || match.isFinished) return;
+    try {
+      final match = _currentMatch;
+      if (match == null || match.isFinished) return;
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+      final roundIndex = match.currentRound - 1;
+      if (roundIndex < 0 || roundIndex >= match.rounds.length) return;
+      final roundData = match.rounds[roundIndex];
+      if (roundData.resolved) return;
 
-    final roundIndex = match.currentRound - 1;
-    if (roundIndex < 0 || roundIndex >= match.rounds.length) return;
-    final roundData = match.rounds[roundIndex];
-    if (roundData.resolved) return;
-
-    final isPlayer1 = user.uid == match.player1Id;
-    final myAnswer =
-        isPlayer1 ? roundData.player1Answer : roundData.player2Answer;
-
-    if (myAnswer == null) {
+      // Submit timeout answers for BOTH players who haven't answered yet.
+      // This prevents a deadlock where one player's timeout fires but the
+      // other player is offline/disconnected and never submits.
       final timeoutAnswer = {
         'answerIndex': -1,
         'timeMs': 20000,
@@ -378,65 +458,22 @@ class GameService {
         'answeredAt': Timestamp.fromDate(DateTime.now()),
       };
 
-      // Use transaction to safely write timeout answer
-      await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(match.id)
-          .update(isPlayer1
-              ? {'rounds.$roundIndex.player1Answer': timeoutAnswer}
-              : {'rounds.$roundIndex.player2Answer': timeoutAnswer});
-    }
+      final updates = <String, dynamic>{};
+      if (roundData.player1Answer == null) {
+        updates['rounds.$roundIndex.player1Answer'] = timeoutAnswer;
+      }
+      if (roundData.player2Answer == null) {
+        updates['rounds.$roundIndex.player2Answer'] = timeoutAnswer;
+      }
 
-    // Re-read and resolve
-    final freshDoc = await FirebaseFirestore.instance
-        .collection('matches')
-        .doc(match.id)
-        .get();
-    if (freshDoc.exists) {
-      _currentMatch = Match.fromFirestore(freshDoc);
-      await _resolveRoundIfReady();
-    }
-  }
+      if (updates.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('matches')
+            .doc(match.id)
+            .update(updates);
+      }
 
-  /// Submit an answer — uses dot-path update to avoid array overwrites.
-  Future<void> submitAnswer(int answerIndex) async {
-    if (_submittingAnswer) return;
-    _submittingAnswer = true;
-
-    try {
-      final match = _currentMatch;
-      if (match == null || match.isFinished) return;
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final isPlayer1 = user.uid == match.player1Id;
-      final roundIndex = match.currentRound - 1;
-      if (roundIndex < 0 || roundIndex >= match.rounds.length) return;
-
-      final roundData = match.rounds[roundIndex];
-      if (isPlayer1 && roundData.player1Answer != null) return;
-      if (!isPlayer1 && roundData.player2Answer != null) return;
-
-      final isCorrect = answerIndex == roundData.correctIndex;
-      final now = DateTime.now();
-
-      final answer = {
-        'answerIndex': answerIndex,
-        'timeMs': _getAnswerTimeMs(match),
-        'isCorrect': isCorrect,
-        'answeredAt': Timestamp.fromDate(now),
-      };
-
-      final fieldPath = isPlayer1
-          ? 'rounds.$roundIndex.player1Answer'
-          : 'rounds.$roundIndex.player2Answer';
-
-      await FirebaseFirestore.instance
-          .collection('matches')
-          .doc(match.id)
-          .update({fieldPath: answer});
-
+      // Re-read and resolve
       final freshDoc = await FirebaseFirestore.instance
           .collection('matches')
           .doc(match.id)
@@ -445,23 +482,96 @@ class GameService {
         _currentMatch = Match.fromFirestore(freshDoc);
         await _resolveRoundIfReady();
       }
+    } catch (e) {
+      debugPrint('[GameService] _resolveRoundOnTimeout error: $e');
+    }
+  }
+
+  /// Submit an answer — uses a transaction to prevent double-submits
+  /// and dot-path updates to avoid array overwrites.
+  Future<void> submitAnswer(int answerIndex) async {
+    if (_submittingAnswer) return;
+    _submittingAnswer = true;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final match = _currentMatch;
+      if (match == null || match.isFinished) return;
+
+      final matchRef = FirebaseFirestore.instance.collection('matches').doc(match.id);
+      final isPlayer1 = user.uid == match.player1Id;
+
+      // Use a transaction to atomically check freshness and submit
+      final result = await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final freshDoc = await transaction.get(matchRef);
+        if (!freshDoc.exists) return false;
+        final freshData = freshDoc.data()!;
+        if (freshData['status'] == 'completed') return false;
+
+        final currentRound = freshData['currentRound'] ?? 0;
+        final roundIndex = currentRound - 1;
+        if (roundIndex < 0) return false;
+
+        final roundsData = freshData['rounds'];
+        dynamic roundMap;
+        if (roundsData is Map<String, dynamic>) {
+          roundMap = roundsData['$roundIndex'];
+        } else if (roundsData is List && roundIndex < roundsData.length) {
+          roundMap = roundsData[roundIndex];
+        }
+        if (roundMap == null) return false;
+
+        // Check not already answered
+        final existingAnswer = isPlayer1 ? roundMap['player1Answer'] : roundMap['player2Answer'];
+        if (existingAnswer != null) return false;
+
+        final correctIndex = roundMap['correctIndex'] ?? 0;
+        final isCorrect = answerIndex == correctIndex;
+        final now = DateTime.now();
+
+        // Compute answer time
+        int timeMs = 0;
+        if (_roundStartTime != null) {
+          timeMs = DateTime.now().difference(_roundStartTime!).inMilliseconds.clamp(0, 20000);
+        } else {
+          final createdAt = (freshData['createdAt'] as Timestamp?)?.toDate();
+          if (createdAt != null) {
+            timeMs = DateTime.now().difference(createdAt).inMilliseconds.clamp(0, 20000);
+          }
+        }
+
+        final answer = {
+          'answerIndex': answerIndex,
+          'timeMs': timeMs,
+          'isCorrect': isCorrect,
+          'answeredAt': Timestamp.fromDate(now),
+        };
+
+        final fieldPath = isPlayer1
+            ? 'rounds.$roundIndex.player1Answer'
+            : 'rounds.$roundIndex.player2Answer';
+
+        transaction.update(matchRef, {fieldPath: answer});
+        return true;
+      });
+
+      if (result == true) {
+        // Re-read after write to get updated state
+        final afterDoc = await matchRef.get();
+        if (afterDoc.exists) {
+          _currentMatch = Match.fromFirestore(afterDoc);
+          await _resolveRoundIfReady();
+        }
+      }
+    } catch (e) {
+      debugPrint('[GameService] submitAnswer error: $e');
     } finally {
       _submittingAnswer = false;
     }
   }
 
-  int _getAnswerTimeMs(Match match) {
-    final roundData = match.currentRoundData;
-    if (roundData != null && roundData.player1Answer != null && roundData.player2Answer != null) {
-      return 0;
-    }
-    // Compute elapsed milliseconds since the round started
-    if (_roundStartTime != null) {
-      return DateTime.now().difference(_roundStartTime!).inMilliseconds;
-    }
-    // Fallback: use elapsed since match creation
-    return DateTime.now().difference(match.createdAt).inMilliseconds.clamp(0, 20000);
-  }
 
   Future<void> _resolveRoundIfReady() async {
     if (_resolving) return;
@@ -518,8 +628,16 @@ class GameService {
         final freshData = freshDoc.data()!;
         final freshP1Score = freshData['player1Score'] ?? 0;
         final freshP2Score = freshData['player2Score'] ?? 0;
-        final freshRoundData = (freshData['rounds'] as List<dynamic>?)?[roundIndex];
-        if (freshRoundData == null || freshRoundData['resolved'] == true) return;
+        final freshRoundsData = freshData['rounds'];
+        dynamic freshRoundData;
+        if (freshRoundsData is List<dynamic>) {
+          freshRoundData = freshRoundsData[roundIndex];
+        } else if (freshRoundsData is Map<String, dynamic>) {
+          freshRoundData = freshRoundsData['$roundIndex'];
+        }
+        if (freshRoundData == null || freshRoundData['resolved'] == true) {
+          return;
+        }
 
         final isLastRound = (freshData['currentRound'] ?? 1) >= (freshData['totalRounds'] ?? 5);
         final newStatus = isLastRound ? 'completed' : 'active';
@@ -541,9 +659,51 @@ class GameService {
 
         transaction.update(matchRef, updateData);
       });
+    } catch (e) {
+      debugPrint('[GameService] _resolveRoundIfReady error: $e');
     } finally {
       _resolving = false;
     }
+  }
+
+  /// Calculate ELO rating change based on opponent difference.
+  /// K-factor of 32 is standard for online games.
+  int _calculateRatingChange({
+    required int myRating,
+    required int oppRating,
+    required bool won,
+    required bool drew,
+    required int streak,
+  }) {
+    const int kFactor = 32;
+
+    // Expected score using ELO formula
+    final double expectedScore =
+        1.0 / (1.0 + pow(10, (oppRating - myRating) / 400.0));
+
+    // Actual score: 1.0 = win, 0.5 = draw, 0.0 = loss
+    final double actualScore = won ? 1.0 : (drew ? 0.5 : 0.0);
+
+    // Base ELO change
+    int change = (kFactor * (actualScore - expectedScore)).round();
+
+    // Streak bonus: +2 per consecutive win (max +10), -2 per consecutive loss (max -10)
+    if (won && streak > 0) {
+      change += (streak * 2).clamp(0, 10);
+    } else if (!won && !drew && streak > 0) {
+      // Loss after streak — no extra penalty beyond ELO
+    }
+
+    // Minimum change of 1 for wins, maximum loss of -50
+    if (won) {
+      change = change.clamp(1, 50);
+    } else if (drew) {
+      change = change.clamp(-10, 10);
+    } else {
+      change = change.clamp(-50, -1);
+    }
+
+    return change;
   }
 
   Future<void> _updatePlayerStats() async {
@@ -560,33 +720,55 @@ class GameService {
     final won = myScore > oppScore;
     final drew = myScore == oppScore;
 
-    int ratingChange = won ? 25 : (drew ? 5 : -15);
-
-    final doc = await FirebaseFirestore.instance
+    // Fetch my player doc for current rating and streak
+    final myDoc = await FirebaseFirestore.instance
         .collection('players')
         .doc(user.uid)
         .get();
+    if (!myDoc.exists) return;
+    final myData = myDoc.data()!;
+    final myRating = myData['rating'] ?? 1000;
+    final currentStreak = myData['streak'] ?? 0;
 
-    if (doc.exists) {
-      final data = doc.data()!;
-      int currentStreak = data['streak'] ?? 0;
-      int bestStreak = data['bestStreak'] ?? 0;
-      int newStreak = won ? currentStreak + 1 : 0;
-      if (newStreak > bestStreak) bestStreak = newStreak;
-
-      await FirebaseFirestore.instance
+    // Fetch opponent's rating for ELO calculation
+    final oppId = isPlayer1 ? match.player2Id : match.player1Id;
+    int oppRating = 1000; // default
+    if (oppId.isNotEmpty) {
+      final oppDoc = await FirebaseFirestore.instance
           .collection('players')
-          .doc(user.uid)
-          .update({
-        'wins': (data['wins'] ?? 0) + (won ? 1 : 0),
-        'losses': (data['losses'] ?? 0) + (!won && !drew ? 1 : 0),
-        'draws': (data['draws'] ?? 0) + (drew ? 1 : 0),
-        'streak': newStreak,
-        'bestStreak': bestStreak,
-        'rating': (data['rating'] ?? 1000) + ratingChange,
-        'totalMatches': (data['totalMatches'] ?? 0) + 1,
-      });
+          .doc(oppId)
+          .get();
+      if (oppDoc.exists) {
+        oppRating = (oppDoc.data()?['rating'] ?? 1000) as int;
+      }
     }
+
+    final int newStreak = won ? currentStreak + 1 : 0;
+    int bestStreak = myData['bestStreak'] ?? 0;
+    if (newStreak > bestStreak) bestStreak = newStreak;
+
+    final int ratingChange = _calculateRatingChange(
+      myRating: myRating,
+      oppRating: oppRating,
+      won: won,
+      drew: drew,
+      streak: currentStreak,
+    );
+
+    final int newRating = (myRating + ratingChange).clamp(100, 9999);
+
+    await FirebaseFirestore.instance
+        .collection('players')
+        .doc(user.uid)
+        .update({
+      'wins': (myData['wins'] ?? 0) + (won ? 1 : 0),
+      'losses': (myData['losses'] ?? 0) + (!won && !drew ? 1 : 0),
+      'draws': (myData['draws'] ?? 0) + (drew ? 1 : 0),
+      'streak': newStreak,
+      'bestStreak': bestStreak,
+      'rating': newRating,
+      'totalMatches': (myData['totalMatches'] ?? 0) + 1,
+    });
   }
 
   Future<void> cancelMatchmaking() async {
@@ -612,7 +794,9 @@ class GameService {
 }
 
 final gameServiceProvider = Provider<GameService>((ref) {
-  return GameService(ref);
+  final service = GameService(ref);
+  ref.onDispose(() => service.dispose());
+  return service;
 });
 
 final isWaitingForOpponentProvider = Provider<bool>((ref) {
@@ -683,8 +867,9 @@ class RoomService {
 
     final code = _generateCode();
 
+    final numQuestions = prefs.totalRounds;
     final questions = await _triviaService.fetchRandomQuestions(
-      5,
+      numQuestions,
       categoryId: prefs.categoryId,
       difficulty: prefs.difficulty,
     );
@@ -701,25 +886,26 @@ class RoomService {
       'player1Score': 0,
       'player2Score': 0,
       'currentRound': 0,
-      'totalRounds': 5,
+      'totalRounds': numQuestions,
       'status': 'waiting',
       'roomCode': code,
       'isPrivate': true,
       'categoryId': prefs.categoryId,
       'categoryName': prefs.categoryName,
       'difficulty': prefs.difficulty,
-      'rounds': questions
-          .map((q) => {
-                'questionId': q.id,
-                'questionText': q.text,
-                'options': q.options,
-                'correctIndex': q.correctIndex,
-                'category': q.category,
-                'player1Answer': null,
-                'player2Answer': null,
-                'resolved': false,
-              })
-          .toList(),
+      'rounds': {
+        for (int i = 0; i < questions.length; i++)
+          '$i': {
+            'questionId': questions[i].id,
+            'questionText': questions[i].text,
+            'options': questions[i].options,
+            'correctIndex': questions[i].correctIndex,
+            'category': questions[i].category,
+            'player1Answer': null,
+            'player2Answer': null,
+            'resolved': false,
+          },
+      },
       'createdAt': FieldValue.serverTimestamp(),
       'completedAt': null,
     };

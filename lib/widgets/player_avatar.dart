@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 
 class PlayerAvatar extends StatelessWidget {
@@ -32,7 +33,7 @@ class PlayerAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.hankenGrotesk(
             fontSize: size * 0.35,
             fontWeight: FontWeight.w600,
             color: isActive ? ringColor : colors.inkFaint,

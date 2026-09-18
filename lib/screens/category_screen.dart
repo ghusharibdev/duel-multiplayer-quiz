@@ -19,6 +19,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   int? _selectedCategoryId;
   String _selectedCategoryName = 'Any Category';
   int? _selectedDifficulty;
+  int _selectedRounds = 5;
+
+  static const List<int> _roundOptions = [3, 5, 7, 10];
 
   static const List<_DifficultyOption> _difficulties = [
     _DifficultyOption(label: 'Any', value: null, icon: Icons.all_inclusive_rounded),
@@ -60,6 +63,47 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
               const SizedBox(height: 24),
 
+              // Number of rounds
+              Text(
+                'Rounds',
+                style: AppTypography.h1(color: colors.ink),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _roundOptions.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final r = _roundOptions[index];
+                    final isSelected = _selectedRounds == r;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedRounds = r),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected ? colors.coral : colors.surface,
+                          borderRadius: BorderRadius.circular(22),
+                          border: isSelected ? null : Border.all(color: colors.border),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$r',
+                            style: AppTypography.body(
+                              color: isSelected ? colors.background : colors.ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // Difficulty chips
               Text(
                 'Difficulty',
@@ -91,8 +135,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Icon(
                               d.icon,
@@ -150,16 +193,19 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 ],
               ),
 
-              const SizedBox(height: 12),                  // Start button
-                  PrimaryButton(
-                    label: 'Find Match',
-                    onPressed: () {
-                      // Save preferences
-                      ref.read(matchPreferencesProvider.notifier).update(
-                        categoryId: _selectedCategoryId,
-                        difficulty: _selectedDifficulty,
-                        categoryName: _selectedCategoryName,
-                      );
+              const SizedBox(height: 12),
+
+              // Start button
+              PrimaryButton(
+                label: 'Find Match',
+                onPressed: () {
+                  // Save preferences
+                  ref.read(matchPreferencesProvider.notifier).update(
+                    categoryId: _selectedCategoryId,
+                    difficulty: _selectedDifficulty,
+                    categoryName: _selectedCategoryName,
+                    totalRounds: _selectedRounds,
+                  );
 
                   Navigator.of(context).push(
                     MaterialPageRoute(

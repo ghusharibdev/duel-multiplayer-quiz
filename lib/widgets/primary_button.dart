@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 
 class PrimaryButton extends StatelessWidget {
@@ -31,10 +32,11 @@ class PrimaryButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: GoogleFonts.hankenGrotesk(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
+            color: colors.onAccent,
           ),
         ),
       ),

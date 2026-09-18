@@ -163,7 +163,13 @@ class Match {
     if (roundsData is List<dynamic>) {
       return roundsData.map((r) => RoundData.fromMap(r)).toList();
     } else if (roundsData is Map<String, dynamic>) {
-      return [];
+      // Firestore dot-notation updates on arrays can convert them to maps
+      // with numeric string keys. Recover by sorting keys and converting.
+      final sortedKeys = roundsData.keys.toList()..sort();
+      return sortedKeys
+          .where((k) => roundsData[k] is Map<String, dynamic>)
+          .map((k) => RoundData.fromMap(roundsData[k]))
+          .toList();
     }
     return [];
   }

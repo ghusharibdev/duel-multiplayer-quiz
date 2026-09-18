@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/primary_button.dart';
@@ -28,9 +28,22 @@ class MatchResultScreen extends StatelessWidget {
   bool get _isDraw => player1Score == player2Score;
   bool get _iWon => _isDraw ? false : (_player1Won == _isPlayer1);
 
+  Color _resultColor(BuildContext context) {
+    final colors = AppColors.of(context);
+    if (_isDraw) return colors.gold;
+    return _iWon ? colors.teal : colors.coral;
+  }
+
+  String get _shareText {
+    if (_isDraw) return 'We drew $_myScore-$_oppScore on Duel! Can you beat me? 🤝';
+    if (_iWon) return 'I won $_myScore-$_oppScore on Duel! 💪 Think you can beat me?';
+    return 'Lost $_myScore-$_oppScore on Duel... Want a rematch? 😤';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final resultColor = _resultColor(context);
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
@@ -42,99 +55,59 @@ class MatchResultScreen extends StatelessWidget {
 
               // Result icon
               Container(
-                width: 100,
-                height: 100,
+                width: 110,
+                height: 110,
                 decoration: BoxDecoration(
-                  color: _iWon
-                      ? colors.gold
-                      : _isDraw
-                          ? colors.surface
-                          : colors.teal.withValues(alpha: 0.2),
+                  color: resultColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: resultColor,
+                    width: 3,
+                  ),
                 ),
                 child: Icon(
-                  _iWon
-                      ? Icons.emoji_events_rounded
-                      : _isDraw
-                          ? Icons.handshake_rounded
-                          : Icons.sentiment_dissatisfied_rounded,
-                  size: 48,
-                  color: _iWon
-                      ? colors.background
-                      : _isDraw
-                          ? colors.ink
-                          : colors.teal,
+                  _isDraw
+                      ? Icons.handshake_rounded
+                      : (_iWon ? Icons.emoji_events_rounded : Icons.sentiment_dissatisfied_rounded),
+                  size: 52,
+                  color: resultColor,
                 ),
-              ).animate().scale(duration: 400.ms, curve: Curves.easeOut),
+              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
               // Result text
               Text(
-                _isDraw ? 'Draw' : (_iWon ? 'You won' : 'You lost'),
-                style: AppTypography.display(
-                  color: _iWon
-                      ? colors.gold
-                      : _isDraw
-                          ? colors.ink
-                          : colors.teal,
-                ),
+                _isDraw ? 'Draw!' : (_iWon ? 'You Won!' : 'You Lost'),
+                style: AppTypography.display(color: resultColor),
                 textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Score text
+              // Score
               Text(
                 '$_myScore - $_oppScore',
-                style: AppTypography.scoreDisplay(
-                  color: colors.ink,
-                ),
+                style: AppTypography.scoreDisplay(color: colors.ink),
                 textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
 
-              const Spacer(flex: 2),
+              const Spacer(flex: 3),
 
-              // Action buttons
+              // Share button (primary action)
               PrimaryButton(
-                label: 'Rematch',
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
+                label: 'Share Result',
+                onPressed: () => Share.share(_shareText),
               ),
 
               const SizedBox(height: 12),
 
+              // Back to Home
               SecondaryButton(
                 label: 'Back to Home',
                 onPressed: () {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Share button
-              TextButton.icon(
-                onPressed: () {
-                  final result = _isDraw
-                      ? 'Drew a Duel match $_myScore-$_oppScore!'
-                      : (_iWon
-                          ? 'Won a Duel match $_myScore-$_oppScore!'
-                          : 'Lost a Duel match $_myScore-$_oppScore');
-                  Clipboard.setData(ClipboardData(text: result));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Result copied to clipboard!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.share_rounded, size: 18),
-                label: Text(
-                  'Share Result',
-                  style: AppTypography.body(color: colors.ink),
-                ),
               ),
 
               const SizedBox(height: 48),

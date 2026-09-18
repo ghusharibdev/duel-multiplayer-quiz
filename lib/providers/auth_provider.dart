@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'storage_service.dart';
@@ -55,6 +56,30 @@ class AuthService {
     await _auth.signOut();
     // Re-sign in anonymously after sign out
     await _auth.signInAnonymously();
+    // Ensure the new anonymous user has a player document
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('players')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists) {
+        await FirebaseFirestore.instance.collection('players').doc(user.uid).set({
+          'displayName': 'Guest',
+          'email': null,
+          'isAnonymous': true,
+          'wins': 0,
+          'losses': 0,
+          'draws': 0,
+          'streak': 0,
+          'bestStreak': 0,
+          'rating': 1000,
+          'totalMatches': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastSeen': FieldValue.serverTimestamp(),
+        });
+      }
+    }
   }
 
   Future<void> deleteAccount() async {

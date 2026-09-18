@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 
 enum AnswerState { idle, selected, correct, incorrect }
@@ -77,7 +78,7 @@ class AnswerOptionButton extends StatelessWidget {
               child: Center(
                 child: Text(
                   label,
-                  style: TextStyle(
+                  style: GoogleFonts.hankenGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: state == AnswerState.correct
@@ -87,11 +88,10 @@ class AnswerOptionButton extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            const SizedBox(width: 12),              Expanded(
               child: Text(
                 text,
-                style: TextStyle(
+                style: GoogleFonts.hankenGrotesk(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: textColor,

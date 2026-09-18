@@ -28,7 +28,12 @@ void main() async {
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  await FirebaseAuth.instance.signInAnonymously();
+  // Only sign in anonymously if no user is already signed in.
+  // Previously this ran unconditionally, which could orphan an existing
+  // email-linked account and lose its associated player data.
+  if (FirebaseAuth.instance.currentUser == null) {
+    await FirebaseAuth.instance.signInAnonymously();
+  }
 
   await _ensurePlayerDocument();
 
@@ -89,6 +94,7 @@ Future<void> _ensurePlayerDocument() async {
 ThemeData _buildTheme(AppColors colors, Brightness brightness) {
   return ThemeData(
     brightness: brightness,
+    fontFamily: 'Hanken Grotesk',
     scaffoldBackgroundColor: colors.background,
     colorScheme: ColorScheme.fromSeed(
       seedColor: colors.coral,
@@ -135,8 +141,8 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: colors.coral),
       ),
-      labelStyle: TextStyle(color: colors.inkSubtle),
-      hintStyle: TextStyle(color: colors.inkFaint),
+      labelStyle: GoogleFonts.hankenGrotesk(color: colors.inkSubtle),
+      hintStyle: GoogleFonts.hankenGrotesk(color: colors.inkFaint),
     ),
   );
 }

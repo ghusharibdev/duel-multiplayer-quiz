@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../models/player.dart';
 import '../providers/player_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -12,7 +14,25 @@ class LeaderboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppColors.of(context);
     final leaderboardAsync = ref.watch(leaderboardProvider);
+    final playerAsync = ref.watch(currentPlayerProvider);
     final user = FirebaseAuth.instance.currentUser;
+
+    // Compute user's rank from leaderboard list
+    int? userRank;
+    final leaderboardPlayers = leaderboardAsync.whenOrNull(
+          data: (players) => players,
+        ) ??
+        [];
+    for (int i = 0; i < leaderboardPlayers.length; i++) {
+      if (leaderboardPlayers[i].uid == user?.uid) {
+        userRank = i + 1;
+        break;
+      }
+    }
+
+    final playerStats = playerAsync.whenOrNull(
+          data: (player) => player?.stats,
+        );
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -34,7 +54,7 @@ class LeaderboardScreen extends ConsumerWidget {
             children: [
               const SizedBox(height: 16),
 
-              // Leaderboard header
+              // Leaderboard header — shows actual user stats
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -44,9 +64,21 @@ class LeaderboardScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _HeaderStat(label: 'Rank', value: '#--', color: colors.coral),
-                    _HeaderStat(label: 'Wins', value: '0', color: colors.gold),
-                    _HeaderStat(label: 'Rating', value: '1000', color: colors.teal),
+                    _HeaderStat(
+                      label: 'Rank',
+                      value: userRank != null ? '#$userRank' : '#--',
+                      color: colors.coral,
+                    ),
+                    _HeaderStat(
+                      label: 'Win Rate',
+                      value: _winRateLabel(playerStats),
+                      color: colors.gold,
+                    ),
+                    _HeaderStat(
+                      label: 'Rating',
+                      value: '${playerStats?.rating ?? 1000}',
+                      color: colors.teal,
+                    ),
                   ],
                 ),
               ),
@@ -84,9 +116,7 @@ class LeaderboardScreen extends ConsumerWidget {
                         final isCurrentUser = user?.uid == player.uid;
                         return _LeaderboardTile(
                           rank: index + 1,
-                          name: player.displayName,
-                          wins: player.stats.wins,
-                          rating: player.stats.rating,
+                          player: player,
                           isCurrentUser: isCurrentUser,
                         );
                       },
@@ -100,6 +130,13 @@ class LeaderboardScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _winRateLabel(PlayerStats? stats) {
+  if (stats == null) return '--%';
+  final total = stats.wins + stats.losses + stats.draws;
+  if (total == 0) return '--%';
+  return '${((stats.wins / total) * 100).round()}%';
 }
 
 class _HeaderStat extends StatelessWidget {
@@ -131,22 +168,34 @@ class _HeaderStat extends StatelessWidget {
 
 class _LeaderboardTile extends StatelessWidget {
   final int rank;
-  final String name;
-  final int wins;
-  final int rating;
+  final Player player;
   final bool isCurrentUser;
 
   const _LeaderboardTile({
     required this.rank,
-    required this.name,
-    required this.wins,
-    required this.rating,
+    required this.player,
     required this.isCurrentUser,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final stats = player.stats;
+    final totalGames = stats.wins + stats.losses + stats.draws;
+    final winRate = totalGames > 0
+        ? ((stats.wins / totalGames) * 100).round()
+        : 0;
+
+    // Medal icons for top 3
+    String rankText = '#$rank';
+    if (rank == 1) {
+      rankText = '🥇';
+    } else if (rank == 2) {
+      rankText = '🥈';
+    } else if (rank == 3) {
+      rankText = '🥉';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -159,22 +208,28 @@ class _LeaderboardTile extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Rank
           SizedBox(
-            width: 32,
-            child: Text(
-              '#$rank',
-              style: AppTypography.body(
-                color: rank <= 3 ? colors.gold : colors.ink,
-              ),
-            ),
+            width: 36,
+            child: rank <= 3
+                ? Text(rankText, style: const TextStyle(fontSize: 20))
+                : Text(
+                    rankText,
+                    style: AppTypography.body(
+                      color: rank <= 10 ? colors.gold : colors.inkSubtle,
+                    ),
+                  ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          // Avatar
           CircleAvatar(
             radius: 16,
             backgroundColor: isCurrentUser ? colors.coral : colors.teal,
             child: Text(
-              name[0].toUpperCase(),
-              style: TextStyle(
+              player.displayName.isNotEmpty
+                  ? player.displayName[0].toUpperCase()
+                  : '?',
+              style: GoogleFonts.hankenGrotesk(
                 color: colors.background,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -182,23 +237,48 @@ class _LeaderboardTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          // Name + win rate
           Expanded(
-            child: Text(
-              name,
-              style: AppTypography.body(
-                color: isCurrentUser ? colors.coral : colors.ink,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  player.displayName,
+                  style: AppTypography.body(
+                    color: isCurrentUser ? colors.coral : colors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$winRate% Win Rate · $totalGames Games',
+                  style: AppTypography.caption(
+                    color: colors.inkSubtle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Streak
+          if (stats.streak >= 2)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.gold.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '🔥${stats.streak}',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.gold,
+                ),
               ),
             ),
-          ),
+          // Rating
           Text(
-            '$wins wins',
-            style: AppTypography.caption(
-              color: colors.inkSubtle,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            '$rating',
+            '${stats.rating}',
             style: AppTypography.timer(color: colors.ink),
           ),
         ],

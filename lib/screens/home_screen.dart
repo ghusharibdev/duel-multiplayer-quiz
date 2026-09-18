@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/player_provider.dart';
 import '../providers/theme_provider.dart';
@@ -15,6 +16,8 @@ import 'room_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  static const int _inlineMatchLimit = 5;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -87,12 +90,11 @@ class HomeScreen extends ConsumerWidget {
                                   ? Icon(
                                       Icons.person_outline_rounded,
                                       size: 22,
-                                      color:
-                                          colors.inkSubtle,
+                                      color: colors.inkSubtle,
                                     )
                                   : Text(
                                       initials,
-                                      style: TextStyle(
+                                      style: GoogleFonts.hankenGrotesk(
                                         color: colors.background,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
@@ -113,16 +115,13 @@ class HomeScreen extends ConsumerWidget {
                                 isAnonymous
                                     ? 'Guest Player'
                                     : 'Hi, $displayName',
-                                style: AppTypography.h1(
-                                  color: colors.ink,
-                                ),
+                                style: AppTypography.h1(color: colors.ink),
                               ),
                               if (isAnonymous)
                                 Text(
                                   'Tap avatar to sign in',
                                   style: AppTypography.caption(
-                                    color:
-                                        colors.inkSubtle,
+                                    color: colors.inkSubtle,
                                   ),
                                 ),
                             ],
@@ -166,16 +165,13 @@ class HomeScreen extends ConsumerWidget {
                   // App title
                   Text(
                     'DUEL',
-                    style:
-                        AppTypography.scoreDisplay(color: colors.coral),
+                    style: AppTypography.scoreDisplay(color: colors.coral),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Real-Time Trivia',
-                    style: AppTypography.body(
-                      color: colors.inkSubtle,
-                    ),
+                    style: AppTypography.body(color: colors.inkSubtle),
                     textAlign: TextAlign.center,
                   ),
 
@@ -290,115 +286,74 @@ class HomeScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
-                  // Match history
-                  Text(
-                    'Recent Matches',
-                    style: AppTypography.h1(color: colors.ink),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    flex: 3,
-                    child: matchHistory.when(
-                      loading: () => Center(
-                        child:
-                            CircularProgressIndicator(color: colors.coral),
+                  // Match history header
+                  Row(
+                    children: [
+                      Text(
+                        'Recent Matches',
+                        style: AppTypography.h1(color: colors.ink),
                       ),
-                      error: (e, s) =>
-                          const Center(child: Text('Error loading matches')),
-                      data: (matches) {
-                        if (matches.isEmpty) {
-                          return Center(
+                      const Spacer(),
+                      matchHistory.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
+                        data: (matches) {
+                          if (matches.length <= _inlineMatchLimit) {
+                            return const SizedBox.shrink();
+                          }
+                          return GestureDetector(
+                            onTap: () => _showAllMatchesSheet(context, ref, colors),
                             child: Text(
-                              'No matches yet',
-                              style: AppTypography.body(
-                                color: colors.inkSubtle,
+                              'View All (${matches.length})',
+                              style: AppTypography.caption(
+                                color: colors.coral,
                               ),
                             ),
                           );
-                        }
-                        return ListView.builder(
-                          itemCount: matches.length,
-                          itemBuilder: (context, index) {
-                            final match = matches[index];
-                            final isPlayer1 =
-                                match['isPlayer1'] ?? true;
-                            final p1Score = match['player1Score'] ?? 0;
-                            final p2Score = match['player2Score'] ?? 0;
-                            final myScore =
-                                isPlayer1 ? p1Score : p2Score;
-                            final oppScore =
-                                isPlayer1 ? p2Score : p1Score;
-                            final won = myScore > oppScore;
-                            final drew = myScore == oppScore;
-                            final opponentName = isPlayer1
-                                ? (match['player2Name'] ?? 'Opponent')
-                                : (match['player1Name'] ?? 'Opponent');
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: colors.surface,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: won
-                                          ? colors.gold
-                                          : drew
-                                              ? colors.surface
-                                              : colors.teal,
-                                      borderRadius:
-                                          BorderRadius.circular(4),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'vs $opponentName',
-                                          style: AppTypography.body(
-                                            color: colors.ink,
-                                          ),
-                                        ),
-                                        Text(
-                                          won
-                                              ? 'Won'
-                                              : drew
-                                                  ? 'Draw'
-                                                  : 'Lost',
-                                          style: AppTypography.caption(
-                                            color: won
-                                                ? colors.gold
-                                                : drew
-                                                    ? colors.ink
-                                                        .withValues(
-                                                            alpha: 0.5)
-                                                    : colors.teal,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    '$myScore - $oppScore',
-                                    style: AppTypography.timer(
-                                      color: colors.ink,
-                                    ),
-                                  ),
-                                ],
+                  // Inline match history (max 5)
+                  Expanded(
+                    flex: 3,
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(currentPlayerProvider);
+                        ref.invalidate(matchHistoryProvider);
+                      },
+                      color: colors.coral,
+                      child: matchHistory.when(
+                        loading: () => Center(
+                          child: CircularProgressIndicator(color: colors.coral),
+                        ),
+                        error: (e, s) =>
+                            const Center(child: Text('Error loading matches')),
+                        data: (matches) {
+                          if (matches.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'No matches yet',
+                                style: AppTypography.body(
+                                  color: colors.inkSubtle,
+                                ),
                               ),
                             );
-                          },
-                        );
-                      },
+                          }
+                          final displayCount = matches.length > _inlineMatchLimit
+                              ? _inlineMatchLimit
+                              : matches.length;
+                          return ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: displayCount,
+                            itemBuilder: (context, index) {
+                              return _MatchTile(match: matches[index]);
+                            },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -407,6 +362,62 @@ class HomeScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+
+  void _showAllMatchesSheet(
+      BuildContext context, WidgetRef ref, AppColors colors) {
+    final matchHistoryAsync = ref.read(matchHistoryProvider);
+    final matches = matchHistoryAsync.whenOrNull(
+          data: (data) => data,
+        ) ??
+        [];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'All Matches (${matches.length})',
+                  style: AppTypography.h1(color: colors.ink),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: matches.length,
+                    itemBuilder: (context, index) {
+                      return _MatchTile(match: matches[index]);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -437,6 +448,74 @@ class _StatItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MatchTile extends StatelessWidget {
+  final Map<String, dynamic> match;
+
+  const _MatchTile({required this.match});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final isPlayer1 = match['isPlayer1'] ?? true;
+    final p1Score = match['player1Score'] ?? 0;
+    final p2Score = match['player2Score'] ?? 0;
+    final myScore = isPlayer1 ? p1Score : p2Score;
+    final oppScore = isPlayer1 ? p2Score : p1Score;
+    final won = myScore > oppScore;
+    final drew = myScore == oppScore;
+    final opponentName = isPlayer1
+        ? (match['player2Name'] ?? 'Opponent')
+        : (match['player1Name'] ?? 'Opponent');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 40,
+            decoration: BoxDecoration(
+              color: won ? colors.gold : drew ? colors.surface : colors.teal,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'vs $opponentName',
+                  style: AppTypography.body(color: colors.ink),
+                ),
+                Text(
+                  won ? 'Won' : drew ? 'Draw' : 'Lost',
+                  style: AppTypography.caption(
+                    color: won
+                        ? colors.gold
+                        : drew
+                            ? colors.ink.withValues(alpha: 0.5)
+                            : colors.teal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$myScore - $oppScore',
+            style: AppTypography.timer(color: colors.ink),
+          ),
+        ],
+      ),
     );
   }
 }

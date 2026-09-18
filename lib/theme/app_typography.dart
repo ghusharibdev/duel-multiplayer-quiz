@@ -18,14 +18,14 @@ class AppTypography {
     );
   }
 
-  static TextStyle _inter({
+  static TextStyle _hanken({
     double fontSize = 16,
     double height = 1.5,
     int weight = 400,
     required Color color,
     bool tabularFigures = false,
   }) {
-    return GoogleFonts.inter(
+    return GoogleFonts.hankenGrotesk(
       fontSize: fontSize,
       height: height,
       fontWeight: FontWeight.values[weight ~/ 100],
@@ -55,21 +55,21 @@ class AppTypography {
         color: color,
       );
 
-  static TextStyle body({required Color color}) => _inter(
+  static TextStyle body({required Color color}) => _hanken(
         fontSize: 16,
         height: 24 / 16,
         weight: 400,
         color: color,
       );
 
-  static TextStyle caption({required Color color}) => _inter(
+  static TextStyle caption({required Color color}) => _hanken(
         fontSize: 13,
         height: 18 / 13,
         weight: 400,
         color: color,
       );
 
-  static TextStyle timer({required Color color}) => _inter(
+  static TextStyle timer({required Color color}) => _hanken(
         fontSize: 16,
         height: 24 / 16,
         weight: 500,

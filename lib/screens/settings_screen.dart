@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import 'home_screen.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
@@ -115,7 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     : (email != null && email.isNotEmpty
                                         ? email[0].toUpperCase()
                                         : '?'),
-                                style: TextStyle(
+                                style: GoogleFonts.hankenGrotesk(
                                   color: isAnonymous
                                       ? colors.inkSubtle
                                       : colors.onAccent,
@@ -271,7 +273,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onPressed: () async {
                   final authService = ref.read(authProvider);
                   await authService.signOut();
-                  if (context.mounted) Navigator.of(context).pop();
+                  if (context.mounted) {
+                    // Reset the entire nav stack to home screen
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const HomeScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  }
                 },
                 child: Text(
                   'Sign Out',
@@ -332,7 +342,7 @@ class _SettingsTile extends StatelessWidget {
                 style: AppTypography.body(color: colors.ink),
               ),
             ),
-            if (trailing != null) trailing!
+            ?trailing
           ],
         ),
       ),

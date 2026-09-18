@@ -3,38 +3,49 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/player.dart';
+import 'auth_provider.dart';
 
 final currentPlayerProvider = StreamProvider<Player?>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value(null);
+  // Watch auth state so this provider rebuilds when the user changes
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    loading: () => Stream.value(null),
+    error: (_, e) => Stream.value(null),
+    data: (user) {
+      if (user == null) return Stream.value(null);
 
-  return FirebaseFirestore.instance
-      .collection('players')
-      .doc(user.uid)
-      .snapshots()
-      .map((doc) {
-    if (doc.exists) {
-      return Player.fromFirestore(doc);
-    }
-    return null;
-  });
+      return FirebaseFirestore.instance
+          .collection('players')
+          .doc(user.uid)
+          .snapshots()
+          .map((doc) {
+        if (doc.exists) {
+          return Player.fromFirestore(doc);
+        }
+        return null;
+      });
+    },
+  );
 });
 
 final leaderboardProvider = StreamProvider<List<Player>>((ref) {
   return FirebaseFirestore.instance
       .collection('players')
       .orderBy('rating', descending: true)
-      .limit(200)
+      .limit(500)
       .snapshots()
       .map((snapshot) {
-    // Filter out anonymous/guest users — only show signed-in players
+    // Only show signed-in players with at least 1 match
+    // Exclude anonymous/guest accounts AND any player without
+    // an explicit isAnonymous:false (safety catch for legacy docs)
     return snapshot.docs.where((doc) {
       final data = doc.data();
+      final totalMatches = data['totalMatches'] ?? 0;
       final isAnonymous = data['isAnonymous'] == true;
-      final isGuest = data['displayName'] == 'Guest';
-      final hasEmail = data['email'] != null && (data['email'] as String).isNotEmpty;
-      // Include only if: not anonymous AND not guest AND has an email
-      return !isAnonymous && !isGuest && hasEmail;
+      final hasEmail = data['email'] != null &&
+          (data['email'] as String).isNotEmpty;
+      // Must have: played a game, NOT anonymous, AND has a real email
+      return totalMatches > 0 && !isAnonymous && hasEmail;
     }).map((doc) => Player.fromFirestore(doc)).toList();
   });
 });
@@ -69,8 +80,13 @@ class PlayerService {
 
     final player = Player(
       uid: user.uid,
-      displayName: user.email?.split('@').first ?? 'Guest',
+      displayName: user.isAnonymous
+          ? 'Guest'
+          : (user.displayName?.isNotEmpty == true
+              ? user.displayName!
+              : user.email?.split('@').first ?? 'Player'),
       email: user.email,
+      isAnonymous: user.isAnonymous,
       createdAt: DateTime.now(),
       lastSeen: DateTime.now(),
     );
@@ -129,37 +145,48 @@ final playerServiceProvider = Provider<PlayerService>((ref) {
 });
 
 final matchHistoryProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value([]);
+  // Watch auth state so this provider rebuilds when the user changes
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    loading: () => Stream.value([]),
+    error: (_, e) => Stream.value([]),
+    data: (user) {
+      if (user == null) return Stream.value([]);
 
-  // Query matches where user is player1 (no orderBy to avoid composite index)
-  final p1Stream = FirebaseFirestore.instance
-      .collection('matches')
-      .where('player1Id', isEqualTo: user.uid)
-      .snapshots();
+      // Query matches where user is player1 (no orderBy to avoid composite index)
+      final p1Stream = FirebaseFirestore.instance
+          .collection('matches')
+          .where('player1Id', isEqualTo: user.uid)
+          .snapshots();
 
-  // Query matches where user is player2 (no orderBy to avoid composite index)
-  final p2Stream = FirebaseFirestore.instance
-      .collection('matches')
-      .where('player2Id', isEqualTo: user.uid)
-      .snapshots();
+      // Query matches where user is player2 (no orderBy to avoid composite index)
+      final p2Stream = FirebaseFirestore.instance
+          .collection('matches')
+          .where('player2Id', isEqualTo: user.uid)
+          .snapshots();
 
   return Rx.combineLatest2(p1Stream, p2Stream, (QuerySnapshot a, QuerySnapshot b) {
     final allMatches = <Map<String, dynamic>>[];
 
     for (final doc in a.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      // Only include completed matches in history
+      if (data['status'] != 'completed') continue;
       allMatches.add({
         'id': doc.id,
         'isPlayer1': true,
-        ...doc.data() as Map<String, dynamic>,
+        ...data,
       });
     }
 
     for (final doc in b.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      // Only include completed matches in history
+      if (data['status'] != 'completed') continue;
       allMatches.add({
         'id': doc.id,
         'isPlayer1': false,
-        ...doc.data() as Map<String, dynamic>,
+        ...data,
       });
     }
 
@@ -172,5 +199,7 @@ final matchHistoryProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
     });
 
     return allMatches.take(20).toList();
-  });
+      });
+    },
+  );
 });
