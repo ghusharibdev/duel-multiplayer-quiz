@@ -25,7 +25,7 @@ A live 1v1 trivia duel app built with Flutter and Firebase. Two players get matc
 
 ### Core Gameplay
 - **Real-Time 1v1 Duels** — Two players answer the same trivia questions simultaneously with live sync via Firestore
-- **Live Answer Race** — Animated horizontal race showing both players' progress in real time, driven by actual Firestore timestamps
+- **Live Answer Race** — Animated horizontal race showing both players' progress in real time, synced via the shared Firestore match document
 - **20-Second Round Timer** — Auto-resolves unanswered rounds; submits timeout answers for both players to prevent deadlocks
 - **3-2-1 Countdown** — Dedicated countdown screen with animated pulsing numbers before the match begins
 - **Animated Score Count-Up** — Scores animate smoothly between rounds using Flutter animation
@@ -39,8 +39,8 @@ A live 1v1 trivia duel app built with Flutter and Firebase. Two players get matc
 
 ### Player System
 - **Anonymous Sign-In** — Zero-friction entry; no login required to play
-- **Email Sign-Up/Sign-In** — Optional account linking to preserve stats across devices
-- **Remember Me** — Credentials stored locally via Hive for seamless re-login
+- **Email Sign-Up/Sign-In** — Optional email account to preserve stats across devices
+- **Remember Me** — Credentials stored locally via Hive to pre-fill the sign-in form
 - **Player Profiles** — Display name, avatar initial, win/loss/draw stats
 
 ### Scoring & Ranking
@@ -51,7 +51,7 @@ A live 1v1 trivia duel app built with Flutter and Firebase. Two players get matc
 - **Best Streak Tracking** — Highest consecutive wins recorded
 
 ### Social
-- **Global Leaderboard** — Ranked list of all players sorted by ELO rating
+- **Global Leaderboard** — Ranked list of registered (non-guest) players sorted by ELO rating
 - **Leaderboard Badges** — 🥇 🥈 🥉 medals for top 3, fire streak indicator
 - **Share Results** — Share match outcome via system share sheet
 - **Match History** — Recent 20 completed matches with win/loss/draw indicators
@@ -136,7 +136,7 @@ No paid packages. No paid Firebase tier required.
 | `NotificationService` | FCM token management, foreground/background notification handling, match result notifications |
 | `OpenTriviaService` | Fetches questions from Open Trivia DB API, decodes HTML entities, shuffles options |
 | `StorageService` | Hive-based local storage for auth credentials and remember-me preference |
-| `PlayerService` | CRUD operations for player documents (used by various screens) |
+| `PlayerService` | Player document helpers (`getOrCreatePlayer`, `updateLastSeen`, `updateStats`) — currently unused legacy code |
 
 ---
 
@@ -316,7 +316,7 @@ waiting → active → completed
 4. Both navigate to countdown → match begins
 
 ### Key Safety Mechanisms
-- **Firestore transactions** on join prevent two players from joining the same match
+- **Firestore transaction** on public match join prevents two players from joining the same match (private room join uses a direct update)
 - **Stale match cleanup** only deletes `waiting` matches (never `active` or `completed`)
 - **Match document contains all questions** — both players see identical data without duplicate API calls
 
@@ -464,7 +464,7 @@ Both players subscribe to the same Firestore match document via `.snapshots()`. 
 5. On final round, sets status to `completed`
 
 ### Live Answer Race
-- Progress is a function of real elapsed time, not decorative animation
+- Progress reflects each player's current answer state, synced through the match document
 - `myProgress = 0.1` (idle) → `0.6` (selected) → `1.0` (submitted)
 - `opponentProgress = 0.1` (idle) → `0.3` (after you submit) → `1.0` (they submit)
 - Animated via `AnimatedBuilder` with `Curves.easeOut`
@@ -496,7 +496,7 @@ Both players subscribe to the same Firestore match document via `.snapshots()`. 
 - Limited to 20 most recent
 
 ### Leaderboard
-- Shows all players with `totalMatches > 0`
+- Shows registered (non-anonymous with email) players with `totalMatches > 0`
 - Sorted by rating descending (ELO)
 - Top 3 get medal icons (🥇 🥈 🥉)
 - Players with 2+ win streak get fire badge (🔥)
