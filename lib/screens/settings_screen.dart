@@ -26,29 +26,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _checkNotificationStatus();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Re-read on return so granting permission in system settings is picked up.
+    _checkNotificationStatus();
+  }
+
   Future<void> _checkNotificationStatus() async {
-    final enabled = await NotificationService().areNotificationsEnabled();
+    final service = NotificationService();
+    await service.refreshPermissionState();
     if (!mounted) return;
     setState(() {
-      _notificationsEnabled = enabled ?? false;
+      _notificationsEnabled = service.isActive;
       _loadingNotifications = false;
     });
   }
 
   Future<void> _toggleNotifications(bool value) async {
+    final service = NotificationService();
+
     if (value) {
-      final enabled = await NotificationService().requestPermission();
+      final granted = await service.requestPermission();
       if (!mounted) return;
-      setState(() => _notificationsEnabled = enabled ?? true);
+      setState(() => _notificationsEnabled = service.isActive);
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Notifications are blocked. Enable them for Duel in device '
+              'settings.',
+            ),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: service.openSystemSettings,
+            ),
+          ),
+        );
+      }
     } else {
-      await NotificationService().cancelAll();
+      await service.setEnabled(false);
       if (!mounted) return;
       setState(() => _notificationsEnabled = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'In-app alerts off. To hide system notifications, turn them off '
-            'in device settings.',
+            'Match alerts off. The system permission is still granted, so '
+            're-enabling here is instant.',
           ),
           duration: Duration(seconds: 3),
         ),

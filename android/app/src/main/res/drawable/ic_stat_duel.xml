@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Status bar icons are drawn as a flat silhouette; the system applies
+         its own tint, so fill is white on a transparent background. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,4 L7,20 L10,20 L10,4 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17,4 L17,20 L14,20 L14,4 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.5,10.6 L13.5,10.6 L13.5,13.4 L10.5,13.4 Z" />
+</vector>
