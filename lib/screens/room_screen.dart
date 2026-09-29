@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/match.dart';
 import '../providers/game_provider.dart';
+import '../services/notification_service.dart';
 import '../services/open_trivia_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -97,6 +98,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       _matchSub?.cancel();
       _matchSub = matchDocStream(matchId).listen((match) {
         if (match != null && match.status == MatchStatus.active && mounted) {
+          // Fires only when the host is backgrounded — in the foreground the
+          // countdown below is the feedback.
+          NotificationService().matchStarted(
+            matchId: matchId,
+            opponentName:
+                match.player2Name.isEmpty ? 'Your opponent' : match.player2Name,
+          );
           // Opponent joined — navigate to countdown screen
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(

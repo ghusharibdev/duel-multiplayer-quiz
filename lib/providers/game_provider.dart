@@ -132,6 +132,8 @@ class GameService {
   bool _statsUpdated = false;
   int _timeoutRound = -1;
   DateTime? _roundStartTime;
+  bool _startNotified = false;
+  int _opponentAnsweredRound = -1;
 
   GameService(this.ref);
 
@@ -149,6 +151,8 @@ class GameService {
     _statsUpdated = false;
     _timeoutRound = -1;
     _roundStartTime = null;
+    _startNotified = false;
+    _opponentAnsweredRound = -1;
   }
 
   /// Start matchmaking: look for an existing waiting match, or create one.
@@ -328,7 +332,6 @@ class GameService {
     // Use a transaction to atomically check-and-join, preventing two
     // players from joining the same match simultaneously.
     final matchRef = FirebaseFirestore.instance.collection('matches').doc(matchId);
-    String? player1Id;
     final joined = await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snap = await transaction.get(matchRef);
       if (!snap.exists) return false;
@@ -336,7 +339,6 @@ class GameService {
       if (data['status'] != 'waiting' || (data['player2Id'] as String?)?.isNotEmpty == true) {
         return false; // already joined or not waiting
       }
-      player1Id = data['player1Id'] as String?;
       transaction.update(matchRef, {
         'player2Id': user.uid,
         'player2Name': displayName,
@@ -350,16 +352,8 @@ class GameService {
       throw Exception('Match is no longer available');
     }
 
-    // Notify the waiting player
-    if (player1Id != null) {
-      NotificationService.sendToPlayer(
-        targetUid: player1Id!,
-        title: 'Match Found!',
-        body: '$displayName joined your match',
-        data: {'matchId': matchId, 'type': 'match_joined'},
-      );
-    }
-
+    // The waiting player is alerted by their own Firestore listener, which
+    // sees this transaction land — no push needed.
     _statsUpdated = false;
     _listenToMatch(matchId);
   }
@@ -376,8 +370,31 @@ class GameService {
 
         final m = _currentMatch!;
         final roundData = m.currentRoundData;
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+
+        if (uid != null && m.status == MatchStatus.active && !_startNotified) {
+          _startNotified = true;
+          NotificationService().matchStarted(
+            matchId: m.id,
+            opponentName: m.opponentNameOf(uid).isEmpty
+                ? 'Your opponent'
+                : m.opponentNameOf(uid),
+          );
+        }
 
         if (roundData != null && !roundData.resolved) {
+          if (uid != null &&
+              m.opponentAnswerOf(uid, roundData) != null &&
+              _opponentAnsweredRound != m.currentRound) {
+            _opponentAnsweredRound = m.currentRound;
+            NotificationService().opponentAnswered(
+              matchId: m.id,
+              opponentName: m.opponentNameOf(uid).isEmpty
+                  ? 'Your opponent'
+                  : m.opponentNameOf(uid),
+            );
+          }
+
           // Record the round start time on the first update for this round
           if (_roundStartTime == null || _timeoutRound != m.currentRound) {
             _roundStartTime = DateTime.now();
@@ -395,15 +412,17 @@ class GameService {
             _statsUpdated = true;
             _updatePlayerStats();
 
-            final isDraw = m.player1Score == m.player2Score;
-            final p1Won = m.player1Score > m.player2Score;
-            NotificationService.sendMatchResult(
-              player1Uid: m.player1Id,
-              player2Uid: m.player2Id,
-              matchId: m.id,
-              player1Won: p1Won,
-              isDraw: isDraw,
-            );
+            if (uid != null) {
+              final myScore =
+                  m.isPlayer1(uid) ? m.player1Score : m.player2Score;
+              NotificationService().matchFinished(
+                matchId: m.id,
+                isDraw: m.isDraw,
+                won: myScore > m.opponentScoreOf(uid),
+                score: myScore,
+                opponentScore: m.opponentScoreOf(uid),
+              );
+            }
           }
         }
       }

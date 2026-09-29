@@ -177,6 +177,15 @@ class Match {
   bool get isFinished => status == MatchStatus.completed;
   bool get isDraw => player1Score == player2Score;
 
+  bool isPlayer1(String uid) => player1Id == uid;
+
+  String opponentNameOf(String uid) => isPlayer1(uid) ? player2Name : player1Name;
+
+  int opponentScoreOf(String uid) => isPlayer1(uid) ? player2Score : player1Score;
+
+  PlayerAnswer? opponentAnswerOf(String uid, RoundData round) =>
+      isPlayer1(uid) ? round.player2Answer : round.player1Answer;
+
   RoundData? get currentRoundData =>
       currentRound > 0 && currentRound <= rounds.length
           ? rounds[currentRound - 1]

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
@@ -27,37 +27,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _checkNotificationStatus() async {
-    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    final enabled = await NotificationService().areNotificationsEnabled();
+    if (!mounted) return;
     setState(() {
-      _notificationsEnabled =
-          settings.authorizationStatus == AuthorizationStatus.authorized;
+      _notificationsEnabled = enabled ?? false;
       _loadingNotifications = false;
     });
   }
 
   Future<void> _toggleNotifications(bool value) async {
     if (value) {
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      setState(() {
-        _notificationsEnabled =
-            settings.authorizationStatus == AuthorizationStatus.authorized;
-      });
+      final enabled = await NotificationService().requestPermission();
+      if (!mounted) return;
+      setState(() => _notificationsEnabled = enabled ?? true);
     } else {
+      await NotificationService().cancelAll();
+      if (!mounted) return;
       setState(() => _notificationsEnabled = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'To fully disable, turn off notifications in device settings',
-            ),
-            duration: Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'In-app alerts off. To hide system notifications, turn them off '
+            'in device settings.',
           ),
-        );
-      }
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 

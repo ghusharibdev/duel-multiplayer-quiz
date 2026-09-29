@@ -90,8 +90,7 @@ A live 1v1 trivia duel app built with Flutter and Firebase. Two players get matc
 | Framework | Flutter (Dart SDK ^3.13.1) |
 | Real-time Database | Cloud Firestore (`cloud_firestore: ^6.8.0`) |
 | Authentication | Firebase Auth (`firebase_auth: ^6.6.1`) — Anonymous + Email |
-| Push Notifications | Firebase Cloud Messaging (`firebase_messaging: ^16.6.0`) |
-| Local Notifications | `flutter_local_notifications: ^18.0.1` |
+| Notifications | `flutter_local_notifications: ^22.3.1` — device-local only, no push service |
 | State Management | Flutter Riverpod (`flutter_riverpod: ^3.4.3`) |
 | Trivia API | Open Trivia DB (`opentdb.com`) — free, no API key |
 | HTTP Client | `http: ^1.2.0` |
@@ -133,7 +132,7 @@ No paid packages. No paid Firebase tier required.
 | `GameService` | Match creation, joining (with Firestore transactions), answer submission (with transactions), round resolution, timeout handling, player stats update |
 | `RoomService` | Private room creation with 6-char codes, room joining |
 | `AuthService` | Email sign-in/up, anonymous sign-in, sign-out (with player doc creation), account deletion, credential persistence |
-| `NotificationService` | FCM token management, foreground/background notification handling, match result notifications |
+| `NotificationService` | Device-local alerts (opponent joined, opponent answered, match result) driven by Firestore snapshots; suppresses alerts already visible on screen |
 | `OpenTriviaService` | Fetches questions from Open Trivia DB API, decodes HTML entities, shuffles options |
 | `StorageService` | Hive-based local storage for auth credentials and remember-me preference |
 | `PlayerService` | Player document helpers (`getOrCreatePlayer`, `updateLastSeen`, `updateStats`) — currently unused legacy code |
@@ -174,7 +173,7 @@ lib/
 │
 ├── services/
 │   ├── open_trivia_service.dart       # Open Trivia DB API integration
-│   └── notification_service.dart      # FCM + local notifications
+│   └── notification_service.dart      # Local notifications
 │
 ├── theme/
 │   ├── app_colors.dart                # Light + dark color palettes
@@ -203,7 +202,6 @@ lib/
 ### Enable Services
 1. **Authentication** → Sign-in method → Enable "Anonymous" and "Email/Password"
 2. **Firestore Database** → Create database → Start in test mode (then add security rules)
-3. **Cloud Messaging** → No setup needed (auto-configured)
 
 ### Connect to Project
 ```bash
@@ -227,9 +225,6 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
-    match /notifications/{notificationId} {
-      allow read, write: if request.auth != null;
-    }
   }
 }
 ```
@@ -251,7 +246,6 @@ service cloud.firestore {
   "bestStreak": 7,
   "rating": 1247,
   "totalMatches": 25,
-  "fcmToken": "device_fcm_token",
   "createdAt": "2024-01-01T00:00:00Z",
   "lastSeen": "2024-01-15T12:30:00Z"
 }

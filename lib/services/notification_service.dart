@@ -1,207 +1,186 @@
-import 'dart:convert';
-import 'dart:ui';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-/// Background message handler — must be top-level function
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Background notifications are handled by the OS
-  // No custom processing needed for this app
-}
-
-class NotificationService {
+/// Device-local notifications for duel events.
+///
+/// Every event is derived from a Firestore snapshot on this device, so nothing
+/// here reaches another player. There is no server push: alerts are only
+/// produced while this app's isolate is alive (foreground or background).
+class NotificationService with WidgetsBindingObserver {
   static final NotificationService _instance = NotificationService._();
   factory NotificationService() => _instance;
   NotificationService._();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
+  final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  bool _initialized = false;
+  static const String _matchChannelId = 'duel_matches';
+  static const Color _coral = Color(0xFFE5533D);
 
-  /// Initialize notifications: request permission, configure handlers
+  bool _initialized = false;
+  bool _enabled = true;
+  bool _appInForeground = true;
+  int _nextId = 0;
+
+  /// Initialise the plugin. Permissions are *not* requested here — ask from a
+  /// user gesture (see the Settings screen) so the OS prompt is not blocked.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
+    WidgetsBinding.instance.addObserver(this);
 
-    // Request permission
-    final settings = await _fcm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
-
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      return;
-    }
-
-    // Initialize local notifications for in-app display
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-    await _localNotifications.initialize(
-      const InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
+    await _plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap — could navigate to match
-      },
     );
 
-    // Get FCM token and save to player document
-    final token = await _fcm.getToken();
-    if (token != null) {
-      await _saveTokenToFirestore(token);
+    _enabled = await areNotificationsEnabled() ?? true;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appInForeground = state == AppLifecycleState.resumed;
+  }
+
+  /// Whether the OS currently allows this app to post notifications.
+  /// Returns null when the platform cannot report a status (e.g. web).
+  Future<bool?> areNotificationsEnabled() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) return android.areNotificationsEnabled();
+
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (ios != null) {
+      final options = await ios.checkPermissions();
+      return options?.isEnabled;
     }
 
-    // Listen for token refresh
-    _fcm.onTokenRefresh.listen(_saveTokenToFirestore);
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Handle notification tap when app is in background
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+    return null;
   }
 
-  Future<void> _saveTokenToFirestore(String token) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('players')
-          .doc(user.uid)
-          .update({
-        'fcmToken': token,
-        'lastSeen': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      // Token save failure is non-critical
+  /// Prompt for permission. Call from a user gesture. Returns the resulting
+  /// enabled state, or null if the platform cannot report one.
+  Future<bool?> requestPermission() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      return android.requestNotificationsPermission();
     }
-  }
 
-  void _handleForegroundMessage(RemoteMessage message) {
-    final notification = message.notification;
-    if (notification == null) return;
-
-    // Show local notification when app is in foreground
-    _showLocalNotification(
-      title: notification.title ?? 'Duel',
-      body: notification.body ?? '',
-      payload: jsonEncode(message.data),
-    );
-  }
-
-  void _handleNotificationTap(RemoteMessage message) {
-    // Could navigate to a specific match based on data
-    final data = message.data;
-    if (data.containsKey('matchId')) {
-      // Navigation handled by the app's routing
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (ios != null) {
+      return ios.requestPermissions(alert: true, badge: true, sound: true);
     }
+
+    return null;
   }
 
-  Future<void> _showLocalNotification({
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'duel_matches',
-      'Match Notifications',
-      channelDescription: 'Notifications for duel matches',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      color: Color(0xFFE5533D), // AppColors.coral
-    );
+  Future<void> cancelAll() => _plugin.cancelAll();
 
-    const details = NotificationDetails(
-      android: androidDetails,
-    );
+  // -------------------------------------------------------------------------
+  // Duel events
+  // -------------------------------------------------------------------------
 
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      details,
-      payload: payload,
-    );
-  }
-
-  /// Send a notification to a specific player via their FCM token
-  static Future<void> sendToPlayer({
-    required String targetUid,
-    required String title,
-    required String body,
-    Map<String, String>? data,
-  }) async {
-    try {
-      // Get the target player's FCM token
-      final playerDoc = await FirebaseFirestore.instance
-          .collection('players')
-          .doc(targetUid)
-          .get();
-
-      if (!playerDoc.exists) return;
-
-      final fcmToken = playerDoc.data()?['fcmToken'] as String?;
-      if (fcmToken == null || fcmToken.isEmpty) return;
-
-      // Store notification in Firestore for delivery
-      // (Cloud Function would send via FCM API in production)
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'to': fcmToken,
-        'title': title,
-        'body': body,
-        'data': data ?? {},
-        'createdAt': FieldValue.serverTimestamp(),
-        'sent': false,
-      });
-    } catch (e) {
-      // Notification send failure is non-critical
-    }
-  }
-
-  /// Send match result notification to both players
-  static Future<void> sendMatchResult({
-    required String player1Uid,
-    required String player2Uid,
+  /// An opponent joined a match this device is waiting in.
+  Future<void> matchStarted({
     required String matchId,
-    required bool player1Won,
-    required bool isDraw,
-  }) async {
-    final resultText = isDraw
-        ? 'The match ended in a draw!'
-        : (player1Won ? 'You won the match!' : 'Your opponent won!');
+    required String opponentName,
+  }) {
+    return _show(
+      title: 'Match found',
+      body: '$opponentName joined your match',
+      payload: {'type': 'match_started', 'matchId': matchId},
+    );
+  }
 
-    await Future.wait([
-      sendToPlayer(
-        targetUid: player1Uid,
-        title: 'Match Complete',
-        body: resultText,
-        data: {'matchId': matchId, 'type': 'match_result'},
-      ),
-      sendToPlayer(
-        targetUid: player2Uid,
-        title: 'Match Complete',
-        body: isDraw
-            ? 'The match ended in a draw!'
-            : (player1Won
-                ? 'Your opponent won!'
-                : 'You won the match!'),
-        data: {'matchId': matchId, 'type': 'match_result'},
-      ),
-    ]);
+  /// The opponent locked in an answer for the current round.
+  Future<void> opponentAnswered({
+    required String matchId,
+    required String opponentName,
+  }) {
+    return _show(
+      title: 'Opponent answered',
+      body: '$opponentName just locked in their answer',
+      payload: {'type': 'opponent_answered', 'matchId': matchId},
+    );
+  }
+
+  /// The duel ended. Scored from this device's point of view.
+  Future<void> matchFinished({
+    required String matchId,
+    required bool isDraw,
+    required bool won,
+    required int score,
+    required int opponentScore,
+  }) {
+    final String body;
+    if (isDraw) {
+      body = 'Draw $score–$opponentScore';
+    } else if (won) {
+      body = 'You won $score–$opponentScore';
+    } else {
+      body = 'You lost $score–$opponentScore';
+    }
+
+    return _show(
+      title: won ? 'Victory' : (isDraw ? 'Draw' : 'Defeat'),
+      body: body,
+      payload: {'type': 'match_finished', 'matchId': matchId},
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Internals
+  // -------------------------------------------------------------------------
+
+  /// Skips notifications the user can already see on screen.
+  bool get _suppressed => !_enabled || _appInForeground;
+
+  Future<void> _show({
+    required String title,
+    required String body,
+    Map<String, String> payload = const {},
+  }) async {
+    if (_suppressed) return;
+
+    try {
+      await _plugin.show(
+        id: _nextId++,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _matchChannelId,
+            'Match notifications',
+            channelDescription:
+                'Opponent activity and results for your duels',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            color: _coral,
+          ),
+          iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+        ),
+        payload: payload.entries.map((e) => '${e.key}=${e.value}').join('&'),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] Failed to show notification: $e');
+    }
   }
 }

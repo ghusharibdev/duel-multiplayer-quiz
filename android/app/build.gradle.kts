@@ -1,3 +1,6 @@
+import java.util.Properties
+import com.flutter.gradle.tasks.FlutterTask
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -5,6 +8,13 @@ plugins {
     // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Load key.properties for release signing
+val keyProperties = Properties()
+val keyPropertiesFile = rootProject.file("key.properties")
+if (keyPropertiesFile.exists()) {
+    keyProperties.load(keyPropertiesFile.inputStream())
 }
 
 android {
@@ -18,26 +28,69 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    androidResources {
+        // Store all these file types UNCOMPRESSED (no DEFLATE) in the AAB/APK.
+        // Covers everything Flutter ships in flutter_assets plus common asset formats.
+        noCompress += listOf(
+            "aab",
+            "assets",
+            "bin",
+            "dex",
+            "frag",
+            "font",
+            "jpg",
+            "jpeg",
+            "json",
+            "mp3",
+            "mp4",
+            "ogg",
+            "otf",
+            "png",
+            "ttf",
+            "wav",
+            "webm",
+            "webp",
+            "zip",
+        )
+    }
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.fusionwave.duelMultiplayerQuiz"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keyProperties["keyAlias"] as String?
+            keyPassword = keyProperties["keyPassword"] as String?
+            // file() resolves relative to android/app/, so 'upload-keystore.jks'
+            // in key.properties works regardless of the Gradle daemon's CWD.
+            storeFile = keyProperties["storeFile"]?.let { file(it as String) }
+            storePassword = keyProperties["storePassword"] as String?
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
+
+            // Explicitly disable R8 code minification and resource shrinking.
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+}
+
+// The flutter tool always passes -Ptree-shake-icons from the CLI (which outranks
+// gradle.properties), and the plugin's task configuration can run after script-level
+// rules. Setting it in whenReady — after all configuration, before execution — wins.
+gradle.taskGraph.whenReady {
+    allTasks.forEach { task ->
+        if (task is FlutterTask) {
+            task.treeShakeIcons = false
         }
     }
 }
